@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "python": "/Users/giacomo/code/rsmas_insar/tools/miniforge3/envs/vsm/bin/python",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            // "env": {
+            //     "PATH": "/Users/giacomo/code/rsmas_insar/tools/miniforge3:/User/giacomo/code/PlotData/src:${env:PATH}",
+            //     "PYTHONPATH": "/Users/giacomo/code/PlotData/src:${env:PYTHONPATH}"
+            // },
+            "args":
+            [
+                "--folder",
+                "CampiFlegrei",
+                "--satellite",
+                "Sen"
+            ]
+        }
+        ]
+}
