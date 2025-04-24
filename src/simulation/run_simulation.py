@@ -92,7 +92,10 @@ def main(iargs=None):
                         parameters = read_csv(inps.params)
 
                         ux, uy, uz = simulate(x=df['xx'], y=df['yy'], paramters=parameters, **inps.__dict__)
-                        displacement = np.sqrt(ux**2 + uy**2 + uz**2)
+
+                        utot = np.array([ux, uy, uz])
+                        los_sar = np.array([df['lx'], df['ly'], df['lz']]).T
+                        displacement = np.sum(utot.T * los_sar, axis=1)
 
                         if inps.noise > 0:
                             displacement = displacement + np.random.normal(0, inps.noise, size=displacement.shape)
@@ -116,13 +119,13 @@ def main(iargs=None):
 
     print("#" * 50)
     print("Inverted simulation results:")
-    print(f"xcen: {sim['xcen'].values}, ycen: {sim['ycen'].values}, depth: {sim['depth'].values}, dVol: {sim['dVol'].values}\n")
+    print(f"xcen: {sim['xcen'].values}\nycen: {sim['ycen'].values}\ndepth: {sim['depth'].values}\ndVol: {sim['dVol'].values}\n")
     print("#" * 50)
     print("Inverted Observed results:")
-    print(f"xcen: {inf['xcen'].values}, ycen: {inf['ycen'].values}, depth: {inf['depth'].values}, dVol: {inf['dVol'].values}\n")
+    print(f"xcen: {inf['xcen'].values}\nycen: {inf['ycen'].values}\ndepth: {inf['depth'].values}\ndVol: {inf['dVol'].values}\n")
     print("#" * 50)
     print("Difference:")
-    print(f"xcen: {sim['xcen'].values - inf['xcen'].values}, ycen: {sim['ycen'].values - inf['ycen'].values}, depth: {sim['depth'].values - inf['depth'].values}, dVol: {sim['dVol'].values - inf['dVol'].values}\n")
+    print(f"xcen: {sim['xcen'].values - inf['xcen'].values}\nycen: {sim['ycen'].values - inf['ycen'].values}\ndepth: {sim['depth'].values - inf['depth'].values}\ndVol: {sim['dVol'].values - inf['dVol'].values}\n")
 
 if __name__ == '__main__':
     main(iargs=sys.argv)

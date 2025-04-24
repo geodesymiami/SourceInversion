@@ -64,11 +64,11 @@ def main():
     inversion_args = template.get("inversion", "")
 
     # Run decomposition
-    print("Running decomposition...")
+    print("Running decomposition...\n")
     run_decomposition(decomp_args)
 
     # Run inversion
-    print("Running inversion...")
+    print("Running inversion...\n")
     run_inversion(inversion_args)
 
 
