@@ -73,7 +73,12 @@ def define_range(tupla, df):
 
 
 def main(iargs=None):
-    inps = create_parser() if not iargs else iargs
+    print("#" * 50)
+    print("Starting Inversion Module...")
+    print("#" * 50)
+    print()
+
+    inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
 
     if inps.satellite:
         p = '|'.join([f"{inps.satellite}[AD]T?"])

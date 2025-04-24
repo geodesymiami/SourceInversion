@@ -38,7 +38,12 @@ def create_parser():
 
 
 def main(iargs=None):
-    inps = create_parser()
+    print("#" * 50)
+    print("Starting Decomposition Module...")
+    print("#" * 50)
+    print()
+
+    inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
 
     if inps.satellite:
         p = '|'.join([f"{s}[AD]T?" for s in inps.satellite])

@@ -60,6 +60,12 @@ def create_parser():
 
 
 def main(iargs=None):
+
+    print("#" * 50)
+    print("Starting Simulation Module...")
+    print("#" * 50)
+    print()
+
     inps = create_parser()
 
     if inps.satellite:
@@ -87,6 +93,9 @@ def main(iargs=None):
 
                         ux, uy, uz = simulate(x=df['xx'], y=df['yy'], paramters=parameters, **inps.__dict__)
                         displacement = np.sqrt(ux**2 + uy**2 + uz**2)
+
+                        if inps.noise > 0:
+                            displacement = displacement + np.random.normal(0, inps.noise, size=displacement.shape)
 
                         simulation_csv = displacement_csv(file=os.path.join(out_folder,f), x=df['xx'], y=df['yy'], z=displacement, err=df['ee'], lose=df['lx'], losn=df['ly'], losz=df['lz'])
 
