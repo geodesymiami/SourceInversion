@@ -40,6 +40,7 @@ def create_parser():
     parser.add_argument('--model', type=str, nargs='+', choices=['mogi', 'point', 'penny', 'spheroid', 'moment', 'okada'], default=['mogi'], help="One or more models: Mogi (1958), McTigue point source (1987), Fialko et al.(2001), Penny-shaped crack, Yang et al. (1988). Spheroid, Davis (1986) Moment tensor, Okada 1985.")
     parser.add_argument('--show', action='store_true', help="Show the plot.")
     parser.add_argument('--noise', type=float, default=0.0, help="Noise value (default: %(default)s).")
+    parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
 
     # Parse arguments
     inps = parser.parse_args()
@@ -56,6 +57,21 @@ def create_parser():
 
     if inps.satellite and inps.weight_sar == 0.0:
         inps.weight_sar = 1.0
+
+    if inps.period:
+        inps.period_folder = []
+        for p in inps.period:
+            delimiters = '[,:\-\s]'
+            dates = re.split(delimiters, p)
+
+            if len(dates[0]) and len(dates[1]) != 8:
+                msg = 'Date format not valid, it must be in the format YYYYMMDD'
+                raise ValueError(msg)
+
+            inps.period_folder.append(f"{dates[0]}_{dates[1]}")
+
+    else:
+        inps.period_folder = []
 
     return inps
 

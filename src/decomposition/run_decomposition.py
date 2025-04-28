@@ -35,6 +35,21 @@ def create_parser():
 
     inps.folder_path = inps.folder if SCRATCHDIR in inps.folder else os.path.join(SCRATCHDIR, inps.folder)
 
+    if inps.period:
+        inps.period_folder = []
+        for p in inps.period:
+            delimiters = '[,:\-\s]'
+            dates = re.split(delimiters, p)
+
+            if len(dates[0]) and len(dates[1]) != 8:
+                msg = 'Date format not valid, it must be in the format YYYYMMDD'
+                raise ValueError(msg)
+
+            inps.period_folder.append(f"{dates[0]}_{dates[1]}")
+
+    else:
+        inps.period_folder = []
+
     return inps
 
 
