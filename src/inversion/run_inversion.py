@@ -12,8 +12,8 @@ from src.shared.csv_functions import results_csv
 from src.shared.helper_functions import inversion_template
 
 EXAMPLE = """
-run_inversion.py --folder CampiFlegrei --satellite Csk  -model mogi spheroid --show
-run_inversion.py --folder /path/to/folder --satellite Sen --txt-file template.txt --shear 0.5 --poisson 0.25 --x-range 0 100 --y-range 0 200 --z-range 0 5000 --volume 1.e6 2.e7 --sampling_id 0 --weight-sar 1.0 --weight-gps 0.0 --model mogi --show
+        run_inversion.py --folder CampiFlegrei --satellite Csk  -model mogi spheroid --show
+        run_inversion.py --folder /path/to/folder --satellite Sen --txt-file template.txt --shear 0.5 --poisson 0.25 --x-range 0 100 --y-range 0 200 --z-range 0 5000 --volume 1.e6 2.e7 --sampling_id 0 --weight-sar 1.0 --weight-gps 0.0 --model mogi --show
 """
 SCRATCHDIR = os.getenv('SCRATCHDIR')
 

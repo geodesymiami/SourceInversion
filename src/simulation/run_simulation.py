@@ -14,6 +14,7 @@ from src.inversion.run_inversion import main as inversion
 
 
 EXAMPLE = """
+        run_simulation.py --folder CampiFlegrei --satellite Sen --show
 """
 SCRATCHDIR = os.getenv('SCRATCHDIR')
 
