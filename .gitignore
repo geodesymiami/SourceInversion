@@ -1,3 +1,4 @@
 .DS_Store
 src/inversion/__pycache__
 .vscode
+.vscode/launch.json
