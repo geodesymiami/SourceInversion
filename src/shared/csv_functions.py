@@ -3,8 +3,8 @@ import csv
 import pandas as pd
 
 def displacement_csv(file, x, y, z, err, lose, losn, losz):
-    if not file.endswith('_test.csv'):
-        file_name = os.path.join(file + '_test.csv')
+    if not file.endswith('.csv'):
+        file_name = os.path.join(file + '.csv')
     else:
         file_name = os.path.join(file)
 
