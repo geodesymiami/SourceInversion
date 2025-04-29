@@ -90,38 +90,10 @@ def define_range(tupla, df):
     return tupla
 
 
-def main(iargs=None):
-    print("#" * 50)
-    print("Starting Inversion Module...")
-    print("#" * 50)
-    print()
-
-    inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
-
-    if inps.satellite:
-        p = '|'.join([f"{inps.satellite}[AD]T?"])
-        input_sar = ''
-
-        pattern = f"({p})\d+"
-        regex = re.compile(pattern)
-        folder_list = [f for f in os.listdir(inps.folder_path) if os.path.isdir(os.path.join(inps.folder_path, f))]
-
-        for folder in folder_list:
-            # Search for the keyword in the path
-            match = regex.match(folder)
-
-            if match:
-                for f in os.listdir(os.path.join(inps.folder_path, folder)):
-                    if f.endswith('.csv') and match.group(0) in f:
-                        input_sar += os.path.join(inps.folder_path, folder, f) + ' '
-
-                        df = pd.read_csv(os.path.join(inps.folder_path, folder, f))
-                        inps.x_range = define_range(inps.x_range, df['xx'])
-                        inps.y_range = define_range(inps.y_range, df['yy'])
-
+def run_vsm(inps, output_folder, input_sar):
     inversion_template(
         inps.txt_file,
-        inps.folder_path,
+        output_folder,
         input_sar=input_sar,
         shear=inps.shear,
         poisson=inps.nu,
@@ -134,15 +106,171 @@ def main(iargs=None):
         weight_gps=inps.weight_gps
     )
 
-    if not glob.glob(os.path.join(inps.folder_path, 'VSM_synth_*.csv')):
+    if not glob.glob(os.path.join(output_folder, 'VSM_synth_*.csv')):
         VSM.read_VSM_settings(inps.txt_file)
         VSM.iVSM()
 
-    if inps.show:
-        for file in os.listdir(inps.folder_path):
-            if 'VSM_synth' in file and file.endswith('.csv'):
-                east, north, data, synth = results_csv(os.path.join(inps.folder_path, file))
-                plot_results(east, north, data, synth)
+
+def plot_results(inps, output_folder):
+    for file in os.listdir(output_folder):
+        if 'VSM_synth' in file and file.endswith('.csv'):
+            east, north, data, synth = results_csv(os.path.join(output_folder, file))
+            plot_results(east, north, data, synth)
+
+
+def main(iargs=None):
+    print("#" * 50)
+    print("Starting Inversion Module...")
+    print("#" * 50)
+    print()
+
+    inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
+
+    if inps.satellite:
+        pattern = f"({'|'.join([f'{inps.satellite}[AD]T?'])})\\d+"
+        regex = re.compile(pattern)
+        folder_list = [f for f in os.listdir(inps.folder_path) if os.path.isdir(os.path.join(inps.folder_path, f))]
+
+        def gather_input_sar(base_folder, match_str):
+            input_sar = ''
+            for f in os.listdir(base_folder):
+                if f.endswith('.csv') and match_str in f:
+                    input_sar += os.path.join(base_folder, f) + ' '
+                    df = pd.read_csv(os.path.join(base_folder, f))
+                    inps.x_range = define_range(inps.x_range, df['xx'])
+                    inps.y_range = define_range(inps.y_range, df['yy'])
+            return input_sar
+
+        if inps.period_folder:
+            for period in inps.period_folder:
+                input_sar = ''
+                for folder in folder_list:
+                    match = regex.match(folder)
+                    if match:
+                        input_folder = os.path.join(inps.folder_path, folder)
+                        period_folder = os.path.join(input_folder, period)
+                        output_folder = os.path.join(inps.folder_path, period)
+
+                        if not os.path.exists(period_folder):
+                            print(f"Period folder {period_folder} does not exist.")
+                            continue
+
+                        os.makedirs(output_folder, exist_ok=True)
+                        input_sar += gather_input_sar(period_folder, match.group(0))
+
+                run_vsm(inps, output_folder, input_sar)
+                if inps.show:
+                    plot_results(inps, output_folder)
+
+        else:
+            input_sar = ''
+            for folder in folder_list:
+                match = regex.match(folder)
+                if match:
+                    input_folder = os.path.join(inps.folder_path, folder)
+                    input_sar += gather_input_sar(input_folder, match.group(0))
+
+            run_vsm(inps, inps.folder_path, input_sar)
+            if inps.show:
+                plot_results(inps, inps.folder_path)
+
+    # print("#" * 50)
+    # print("Starting Inversion Module...")
+    # print("#" * 50)
+    # print()
+
+    # inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
+
+    # if inps.satellite:
+    #     input_sar = ''
+
+    #     p = '|'.join([f"{inps.satellite}[AD]T?"])
+    #     pattern = f"({p})\d+"
+    #     regex = re.compile(pattern)
+    #     folder_list = [f for f in os.listdir(inps.folder_path) if os.path.isdir(os.path.join(inps.folder_path, f))]
+
+    #     ##################################################
+
+    #     if inps.period_folder:
+    #         for period in inps.period_folder:
+    #             input_sar = ''
+
+    #             for folder in folder_list:
+    #                 # Search for the keyword in the path
+    #                 match = regex.match(folder)
+    #                 if match:
+    #                     input_folder = os.path.join(inps.folder_path, folder)
+    #                     period_folder = os.path.join(input_folder, period)
+    #                     output_folder = os.path.join(inps.folder_path, period)
+
+    #                     if not os.path.exists(period_folder):
+    #                         print(f"Period folder {period_folder} does not exist.")
+    #                         continue
+
+    #                     os.makedirs(output_folder, exist_ok=True)
+
+    #                     for f in os.listdir(period_folder):
+    #                         if f.endswith('.csv') and match.group(0) in f:
+    #                             input_sar += os.path.join(period_folder, f) + ' '
+
+    #                             df = pd.read_csv(os.path.join(period_folder, f))
+    #                             inps.x_range = define_range(inps.x_range, df['xx'])
+    #                             inps.y_range = define_range(inps.y_range, df['yy'])
+
+    #             run_vsm(inps, output_folder, input_sar)
+
+    #             if inps.show:
+    #                 plot_results(inps, output_folder)
+
+    #     else:
+    #         for folder in folder_list:
+    #             # Search for the keyword in the path
+    #             match = regex.match(folder)
+    #             if match:
+    #                 input_folder = os.path.join(inps.folder_path, folder)
+    #                 output_folder = inps.folder_path
+
+    #                 for f in os.listdir(input_folder):
+    #                     if f.endswith('.csv') and match.group(0) in f:
+    #                         input_sar += os.path.join(input_folder, f) + ' '
+
+    #                         df = pd.read_csv(os.path.join(input_folder, f))
+    #                         inps.x_range = define_range(inps.x_range, df['xx'])
+    #                         inps.y_range = define_range(inps.y_range, df['yy'])
+
+    #         run_vsm(inps, output_folder, input_sar)
+
+    #         if inps.show:
+    #             plot_results(inps, output_folder)
+
+
+                # inversion_template(
+                #     inps.txt_file,
+                #     output_folder,
+                #     input_sar=input_sar,
+                #     shear=inps.shear,
+                #     poisson=inps.nu,
+                #     x_range=f"{inps.x_range[0]} {inps.x_range[1]}",
+                #     y_range=f"{inps.y_range[0]} {inps.y_range[1]}",
+                #     z_range=f"{inps.z_range[0]} {inps.z_range[1]}",
+                #     Volume=inps.volume,
+                #     sampling_id=inps.sampling_id,
+                #     weight_sar=inps.weight_sar,
+                #     weight_gps=inps.weight_gps
+                # )
+
+                # if not glob.glob(os.path.join(output_folder, 'VSM_synth_*.csv')):
+                #     VSM.read_VSM_settings(inps.txt_file)
+                #     VSM.iVSM()
+
+                # if inps.show:
+                #     for file in os.listdir(output_folder):
+                #         if 'VSM_synth' in file and file.endswith('.csv'):
+                #             east, north, data, synth = results_csv(os.path.join(output_folder, file))
+                #             plot_results(east, north, data, synth)
+
+        ##################################################
+
 
 if __name__ == '__main__':
     main(iargs=sys.argv)
