@@ -1,8 +1,6 @@
 import os
 import glob
 import numpy as np
-import pandas as pd
-# from mintpy.utils import readfile
 from pyproj import Transformer
 
 
