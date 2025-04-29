@@ -2,3 +2,4 @@
 src/inversion/__pycache__
 .vscode
 .vscode/launch.json
+src/shared/__pycache__
