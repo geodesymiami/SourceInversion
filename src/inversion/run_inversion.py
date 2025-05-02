@@ -45,11 +45,11 @@ def create_parser():
 
     inps.folder_path = inps.folder if SCRATCHDIR in inps.folder else os.path.join(SCRATCHDIR, inps.folder)
 
-    if inps.txt_file:
-        if os.path.dirname(inps.txt_file) == '':
-            inps.txt_file = os.path.join(inps.folder_path, inps.txt_file)
-    else:
-        inps.txt_file = os.path.join(inps.folder_path, 'VSM_input.txt')
+    # if inps.txt_file:
+    #     if os.path.dirname(inps.txt_file) == '':
+    #         inps.txt_file = os.path.join(inps.folder_path, inps.txt_file)
+    # else:
+    #     inps.txt_file = os.path.join(inps.folder_path, 'VSM_input.txt')
 
     if inps.satellite and inps.weight_sar == 0.0:
         inps.weight_sar = 1.0
@@ -91,6 +91,9 @@ def define_range(tupla, df):
 
 
 def run_vsm(inps, output_folder, input_sar):
+    if not inps.txt_file:
+        inps.txt_file = os.path.join(output_folder, 'VSM_input.txt')
+
     inversion_template(
         inps.txt_file,
         output_folder,
