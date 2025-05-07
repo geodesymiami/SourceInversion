@@ -9,8 +9,9 @@ from src.shared.helper_functions import extent2meshgrid, convert_to_utm
 
 
 class Downsample:
-    def __init__(self, velocity_file=None, kite_file=None):
+    def __init__(self, velocity_file=None, kite_file=None, geometry_file=None):
         self.velocity_file = velocity_file
+        self.geometry_file = geometry_file
         self.velocity, self.metadata = readfile.read(self.velocity_file)
         self.kite_file = kite_file
 
@@ -82,7 +83,11 @@ class Downsample:
 
     def _LOS(self):
         self.los_az_angle = float(self.metadata['HEADING'])
-        self.los_inc_angle = float(self.metadata['CENTER_INCIDENCE_ANGLE'])
+        if 'CENTER_INCIDENCE_ANGLE' in self.metadata:
+            self.los_inc_angle = float(self.metadata['CENTER_INCIDENCE_ANGLE'])
+        else:
+            data = readfile.read(self.geometry_file, datasetName='/incidenceAngle')[0]
+            self.los_inc_angle = np.nanmedian(data)
 
         self.ref_lat = float(self.metadata['REF_LAT'])
         self.ref_lon = float(self.metadata['REF_LON'])

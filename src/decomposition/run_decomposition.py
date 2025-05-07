@@ -65,12 +65,12 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
     kite_args = [velocity_file[0], "-d", "velocity", "-g", geom_file[0], "-o", out_file]
 
     if inps.method == 'uniform':
-        down = Downsample(velocity_file=velocity_file[0])
+        down = Downsample(velocity_file=velocity_file[0], geometry_file=geom_file[0])
         down.uniform(reduction=inps.reduce)
 
     elif inps.method == 'quadtree':
         skite(kite_args)
-        down = Downsample(velocity_file=velocity_file[0], kite_file=out_file + '.yml')
+        down = Downsample(velocity_file=velocity_file[0], kite_file=out_file + '.yml', geometry_file=geom_file[0])
         down.quadtree(epsilon=inps.epsilon, tile_size_max=inps.tile_size_max, tile_size_min=inps.tile_size_min)
 
     # Save the downsampled data
