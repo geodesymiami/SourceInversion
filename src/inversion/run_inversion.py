@@ -63,7 +63,7 @@ def create_parser():
         'okada': '5'
     }
 
-    inps.model = " ".join([model[m] for m in inps.model])
+    inps.sampling_id = " ".join([model[m] for m in inps.model])
 
     if inps.period:
         inps.period_folder = []
