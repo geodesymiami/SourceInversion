@@ -1,7 +1,9 @@
 # SourceInversion
 
 Add VSM to pythonpath (we haven't added anything on the environment.bash yet)
-```export PYTHONPATH=$$RSMASINSAR_HOME/tools/VSM/VSM:$PYTHONPATH```
+```
+export PYTHONPATH=$$RSMASINSAR_HOME/tools/VSM/VSM:$PYTHONPATH
+```
 
 ## Segguested
 ### Run each step separatedly
@@ -28,6 +30,7 @@ I.e.:
     "inversion": "--folder CampiFlegrei --satellite Sen --model mogi --show"
 }
 ```
+Run the command
 
 ```
 src/cli/run_all.py
