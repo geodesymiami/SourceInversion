@@ -7,15 +7,15 @@ import VSM
 import glob
 import argparse
 import pandas as pd
-from src.shared.plot import plot_results
+from src.shared.plot import plot_results as plot
 from src.shared.csv_functions import results_csv
-from src.shared.helper_functions import inversion_template
+from src.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DEFS
+
 
 EXAMPLE = """
         run_inversion.py --folder CampiFlegrei --satellite Csk  -model mogi spheroid --show
         run_inversion.py --folder /path/to/folder --satellite Sen --txt-file template.txt --shear 0.5 --poisson 0.25 --x-range 0 100 --y-range 0 200 --z-range 0 5000 --volume 1.e6 2.e7 --sampling_id 0 --weight-sar 1.0 --weight-gps 0.0 --model mogi --show
 """
-SCRATCHDIR = os.getenv('SCRATCHDIR')
 
 
 def create_parser():
@@ -27,43 +27,48 @@ def create_parser():
     parser.add_argument('--folder', type=str, required=True, help="Path to the folder.")
     parser.add_argument('--satellite', type=str, default=None, choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
-    parser.add_argument('--shear', type=float, default=0.5, help="Shear value (default: 0.5).")
+    parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: 0.5).")
     parser.add_argument('--poisson', type=float, dest='nu', default=0.25, help="Poisson ratio (default: %(default)s).")
     parser.add_argument('--x-range', type=float, nargs=2, default=[float('inf'), float('-inf')], help="X range.")
     parser.add_argument('--y-range', type=float, nargs=2, default=[float('inf'), float('-inf')], help="Y range.")
     parser.add_argument('--z-range', type=float, nargs=2, default=(0, 5000), help="Z range (default: %(default)s).")
-    parser.add_argument('--volume', type=str, default='1.e6 2.e7', help="Volume value (default: %(default)s).")
-    parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID (default: %(default)s).")
+    parser.add_argument('--model', type=str, choices=['mogi', 'penny', 'spheroid', 'moment', 'okada'], nargs='+', help='Source model(s) to include.')
     parser.add_argument('--weight-sar', type=float, default=1.0, help="Weight for SAR data (default: 1.0).")
     parser.add_argument('--weight-gps', type=float, default=0.0, help="Weight for GPS data (default: 1.0).")
-    parser.add_argument('--model', type=str, nargs='+', choices=['mogi', 'point', 'penny', 'spheroid', 'moment', 'okada'], default=['mogi'], help="One or more models: Mogi (1958), McTigue point source (1987), Fialko et al.(2001), Penny-shaped crack, Yang et al. (1988). Spheroid, Davis (1986) Moment tensor, Okada 1985.")
     parser.add_argument('--show', action='store_true', help="Show the plot.")
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
+    parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID (default: %(default)s).")
+
+    # Mogi parameters
+    parser.add_argument('--mogi-volume', type=float, nargs=2, default=[1e6, 2e7])
+
+    # Penny parameters
+    parser.add_argument('--penny-radius', type=float, nargs=2, default=[800, 800])
+    parser.add_argument('--penny-dp_mu', type=float, nargs=2, default=[0.0001, 0.01])
+
+    # Spheroid example
+    parser.add_argument('--spheroid-strike', type=float, nargs=2, default=[0, 360])
+    parser.add_argument('--spheroid-dip', type=float, nargs=2, default=[0, 90])
+    parser.add_argument('--spheroid-axis-ratio', type=float, nargs=2, default=[0.5, 1])
+    parser.add_argument('--spheroid-semi-axis', type=float, nargs=2, default=[500, 3000])
+    parser.add_argument('--spheroid-dp_mu', type=float, nargs=2, default=[0.0001, 0.01])
+
+    # Okada / Dislocation (model id = 5 R)
+    parser.add_argument('--okada-length', type=float, nargs=2, default=[1000, 5000], help="Fault length range (meters)")
+    parser.add_argument('--okada-width', type=float, nargs=2, default=[1000, 5000], help="Fault width range (meters)")
+    parser.add_argument('--okada-strike', type=float, nargs=2, default=[0, 360], help="Strike angle range (degrees)")
+    parser.add_argument('--okada-dip', type=float, nargs=2, default=[0, 90], help="Dip angle range (degrees)")
+    parser.add_argument('--okada-slip', type=float, nargs=2, default=[0, 10], help="Slip amount range (meters)")
+    parser.add_argument('--okada-rake', type=float, nargs=2, default=[0, 0], help="Rake angle range (degrees)")
+    parser.add_argument('--okada-opening', type=float, nargs=2, default=[0.0, 1.0], help="Opening displacement range (meters)")
 
     # Parse arguments
     inps = parser.parse_args()
 
     inps.folder_path = inps.folder if SCRATCHDIR in inps.folder else os.path.join(SCRATCHDIR, inps.folder)
 
-    # if inps.txt_file:
-    #     if os.path.dirname(inps.txt_file) == '':
-    #         inps.txt_file = os.path.join(inps.folder_path, inps.txt_file)
-    # else:
-    #     inps.txt_file = os.path.join(inps.folder_path, 'VSM_input.txt')
-
     if inps.satellite and inps.weight_sar == 0.0:
         inps.weight_sar = 1.0
-
-    model = {
-        'mogi': '0',
-        'point': '1',
-        'penny': '2',
-        'spheroid': '3',
-        'moment': '4',
-        'okada': '5'
-    }
-
-    inps.sampling_id = " ".join([model[m] for m in inps.model])
 
     if inps.period:
         inps.period_folder = []
@@ -83,6 +88,32 @@ def create_parser():
     return inps
 
 
+def extract_model_parameters(inps):
+    model_dict = {}
+
+    for model in inps.model:
+        model = model.lower()
+        if model not in MODEL_DEFS:
+            continue
+
+        model_id = MODEL_DEFS[model]['id']
+        param_keys = MODEL_DEFS[model]['params']
+
+        param_values = []
+        for param in param_keys:
+            val = getattr(inps, f'{model}_{param}', None)
+            if val is None:
+                raise ValueError(f'Missing parameter --{model}-{param}')
+            param_values.append(val)
+
+        model_dict[model_id] = {
+            'name': model,
+            'params': param_values
+        }
+
+    return model_dict
+
+
 def define_range(tupla, df):
     tupla[0] = round(min(tupla[0], df.min()))
     tupla[1] = round(max(tupla[1], df.max()))
@@ -90,20 +121,21 @@ def define_range(tupla, df):
     return tupla
 
 
-def run_vsm(inps, output_folder, input_sar):
+def run_vsm(inps, output_folder, input_sar, model_inputs):
     if not inps.txt_file:
         inps.txt_file = os.path.join(output_folder, 'VSM_input.txt')
 
     inversion_template(
-        inps.txt_file,
-        output_folder,
+        txt_file=inps.txt_file,
+        output_folder=output_folder,
         input_sar=input_sar,
+        input_gps=getattr(inps, "input_gps", None),
         shear=inps.shear,
         poisson=inps.nu,
-        x_range=f"{inps.x_range[0]} {inps.x_range[1]}",
-        y_range=f"{inps.y_range[0]} {inps.y_range[1]}",
-        z_range=f"{inps.z_range[0]} {inps.z_range[1]}",
-        Volume=inps.volume,
+        x_range=inps.x_range,
+        y_range=inps.y_range,
+        z_range=inps.z_range,
+        models=model_inputs,
         sampling_id=inps.sampling_id,
         weight_sar=inps.weight_sar,
         weight_gps=inps.weight_gps
@@ -112,13 +144,19 @@ def run_vsm(inps, output_folder, input_sar):
     if not glob.glob(os.path.join(output_folder, 'VSM_synth_*.csv')):
         VSM.read_VSM_settings(inps.txt_file)
         VSM.iVSM()
+    else:
+        print("#" * 50)
+        print("VSM_synth already exists, skipping inversion.\n")
+
+    print("#" * 50)
+    print("Inversion completed with VSM.\n")
 
 
 def plot_results(inps, output_folder):
     for file in os.listdir(output_folder):
         if 'VSM_synth' in file and file.endswith('.csv'):
             east, north, data, synth = results_csv(os.path.join(output_folder, file))
-            plot_results(east, north, data, synth)
+            plot(east, north, data, synth)
 
 
 def main(iargs=None):
@@ -161,7 +199,8 @@ def main(iargs=None):
                         os.makedirs(output_folder, exist_ok=True)
                         input_sar += gather_input_sar(period_folder, match.group(0))
 
-                run_vsm(inps, output_folder, input_sar)
+                model_inputs = extract_model_parameters(inps)
+                run_vsm(inps, output_folder, input_sar, model_inputs)
                 if inps.show:
                     plot_results(inps, output_folder)
 
@@ -173,6 +212,7 @@ def main(iargs=None):
                     input_folder = os.path.join(inps.folder_path, folder)
                     input_sar += gather_input_sar(input_folder, match.group(0))
 
+            model_inputs = extract_model_parameters(inps)
             run_vsm(inps, inps.folder_path, input_sar)
             if inps.show:
                 plot_results(inps, inps.folder_path)
