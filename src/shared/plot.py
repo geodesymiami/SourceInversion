@@ -10,6 +10,8 @@ def plot_results(east, north, data, synth):
     residuals = data - synth
 
     fig=plt.figure(figsize=(15,6))
+    print("#" * 50)
+    print("Plotting results...\n")
 
     ## PANEL DATA ##########
     ax = plt.subplot(131)
