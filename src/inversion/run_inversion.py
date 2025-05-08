@@ -213,7 +213,7 @@ def main(iargs=None):
                     input_sar += gather_input_sar(input_folder, match.group(0))
 
             model_inputs = extract_model_parameters(inps)
-            run_vsm(inps, inps.folder_path, input_sar)
+            run_vsm(inps, inps.folder_path, input_sar, model_inputs)
             if inps.show:
                 plot_results(inps, inps.folder_path)
 
