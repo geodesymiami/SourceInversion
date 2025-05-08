@@ -30,7 +30,7 @@ def run_decomposition(args):
             "bash", "-c",
             f"source {os.getenv('RSMASINSAR_HOME')}/tools/miniforge3/etc/profile.d/conda.sh && conda activate base && python src/decomposition/run_decomposition.py {args}"
         ]
-        print(f"Running decomposition command: {' '.join(cmd)}")
+        print(f"Running decomposition command: {' '.join(cmd)}\n")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error running decomposition: {e}")
@@ -46,7 +46,7 @@ def run_inversion(args):
             "bash", "-c",
             f"source {os.getenv('RSMASINSAR_HOME')}/tools/miniforge3/etc/profile.d/conda.sh && conda activate vsm && python src/inversion/run_inversion.py {args}"
         ]
-        print(f"Running inversion command: {' '.join(cmd)}")
+        print(f"Running inversion command: {' '.join(cmd)}\n")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error running inversion: {e}")
@@ -55,7 +55,7 @@ def run_inversion(args):
 
 def main():
     # Path to the template file
-    template_path = "/Users/giacomo/code/rsmas_insar/tools/SourceInversion/template.json"
+    template_path = f"{os.getenv('RSMASINSAR_HOME')}/tools/SourceInversion/template.json"
 
     # Load arguments from the template file
     template = load_template(template_path)
