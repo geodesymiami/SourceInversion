@@ -28,7 +28,7 @@ def run_decomposition(args):
     try:
         cmd = [
             "bash", "-c",
-            f"source /Users/giacomo/code/rsmas_insar/tools/miniforge3/etc/profile.d/conda.sh && conda activate base && python src/decomposition/run_decomposition.py {args}"
+            f"source {os.getenv('RSMASINSAR_HOME')}/tools/miniforge3/etc/profile.d/conda.sh && conda activate base && python src/decomposition/run_decomposition.py {args}"
         ]
         print(f"Running decomposition command: {' '.join(cmd)}")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -44,7 +44,7 @@ def run_inversion(args):
     try:
         cmd = [
             "bash", "-c",
-            f"source /Users/giacomo/code/rsmas_insar/tools/miniforge3/etc/profile.d/conda.sh && conda activate vsm && python src/inversion/run_inversion.py {args}"
+            f"source {os.getenv('RSMASINSAR_HOME')}/tools/miniforge3/etc/profile.d/conda.sh && conda activate vsm && python src/inversion/run_inversion.py {args}"
         ]
         print(f"Running inversion command: {' '.join(cmd)}")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
