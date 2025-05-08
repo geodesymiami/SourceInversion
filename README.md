@@ -22,10 +22,12 @@ src/cli/run_inversion --folder Chiles --satellite Sen --period=20220531:20220930
 Each step has its own arguments defined in the [template](template.json)
 
 I.e.:
-```{
+```
+{
     "decomposition": "--folder CampiFlegrei --satellite Sen --method uniform --show",
     "inversion": "--folder CampiFlegrei --satellite Sen --model mogi --show"
-}```
+}
+```
 
 ```
 src/cli/run_all.py
