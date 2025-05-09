@@ -14,7 +14,7 @@ from src.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DE
 
 EXAMPLE = """
         run_inversion.py --folder CampiFlegrei --satellite Csk  -model mogi spheroid --show
-        run_inversion.py --folder /path/to/folder --satellite Sen --txt-file template.txt --shear 0.5 --poisson 0.25 --x-range 0 100 --y-range 0 200 --z-range 0 5000 --volume 1.e6 2.e7 --sampling_id 0 --weight-sar 1.0 --weight-gps 0.0 --model mogi --show
+        run_inversion.py --folder /path/to/folder --satellite Sen --txt-file template.txt --shear 0.5 --poisson 0.25 --x-range 0 100 --y-range 0 200 --z-range 0 5000 --model mogi --mogi-volume 1.e6 2.e7 --sampling_id 0 --weight-sar 1.0 --weight-gps 0.0 --show
 """
 
 
@@ -25,7 +25,7 @@ def create_parser():
 
     # Add arguments
     parser.add_argument('--folder', type=str, required=True, help="Path to the folder.")
-    parser.add_argument('--satellite', type=str, default=None, choices=['Sen', 'Csk'], help="Satellite name.")
+    parser.add_argument('--satellite', type=str, default='Sen', choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
     parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: 0.5).")
     parser.add_argument('--poisson', type=float, dest='nu', default=0.25, help="Poisson ratio (default: %(default)s).")
@@ -40,27 +40,27 @@ def create_parser():
     parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID (default: %(default)s).")
 
     # Mogi parameters
-    parser.add_argument('--mogi-volume', type=float, nargs=2, default=[1e6, 2e7])
+    parser.add_argument('--mogi-volume', type=float, nargs=2, default=[1e6, 2e7], help="Mogi volume range (default: %(default)s).")
 
     # Penny parameters
-    parser.add_argument('--penny-radius', type=float, nargs=2, default=[800, 800])
-    parser.add_argument('--penny-dp_mu', type=float, nargs=2, default=[0.0001, 0.01])
+    parser.add_argument('--penny-radius', type=float, nargs=2, default=[800, 800], help="Penny radius range (default: %(default)s).")
+    parser.add_argument('--penny-dp_mu', type=float, nargs=2, default=[0.0001, 0.01], help="Penny dp/mu range (default: %(default)s).")
 
     # Spheroid example
-    parser.add_argument('--spheroid-strike', type=float, nargs=2, default=[0, 360])
-    parser.add_argument('--spheroid-dip', type=float, nargs=2, default=[0, 90])
-    parser.add_argument('--spheroid-axis-ratio', type=float, nargs=2, default=[0.5, 1])
-    parser.add_argument('--spheroid-semi-axis', type=float, nargs=2, default=[500, 3000])
-    parser.add_argument('--spheroid-dp_mu', type=float, nargs=2, default=[0.0001, 0.01])
+    parser.add_argument('--spheroid-strike', type=float, nargs=2, default=[0, 360], help="Spheroid strike range (default: %(default)s).")
+    parser.add_argument('--spheroid-dip', type=float, nargs=2, default=[0, 90], help="Spheroid dip range (default: %(default)s).")
+    parser.add_argument('--spheroid-axis-ratio', type=float, nargs=2, default=[0.5, 1], help="Spheroid axis ratio range (default: %(default)s).")
+    parser.add_argument('--spheroid-semi-axis', type=float, nargs=2, default=[500, 3000], help="Spheroid semi-axis range (default: %(default)s).")
+    parser.add_argument('--spheroid-dp_mu', type=float, nargs=2, default=[0.0001, 0.01], help="Spheroid dp/mu range (default: %(default)s).")
 
     # Okada / Dislocation (model id = 5 R)
-    parser.add_argument('--okada-length', type=float, nargs=2, default=[1000, 5000], help="Fault length range (meters)")
-    parser.add_argument('--okada-width', type=float, nargs=2, default=[1000, 5000], help="Fault width range (meters)")
-    parser.add_argument('--okada-strike', type=float, nargs=2, default=[0, 360], help="Strike angle range (degrees)")
-    parser.add_argument('--okada-dip', type=float, nargs=2, default=[0, 90], help="Dip angle range (degrees)")
-    parser.add_argument('--okada-slip', type=float, nargs=2, default=[0, 10], help="Slip amount range (meters)")
-    parser.add_argument('--okada-rake', type=float, nargs=2, default=[0, 0], help="Rake angle range (degrees)")
-    parser.add_argument('--okada-opening', type=float, nargs=2, default=[0.0, 1.0], help="Opening displacement range (meters)")
+    parser.add_argument('--okada-length', type=float, nargs=2, default=[1000, 5000], help="Fault length range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-width', type=float, nargs=2, default=[1000, 5000], help="Fault width range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-strike', type=float, nargs=2, default=[0, 360], help="Strike angle range (degrees) (default: %(default)s).")
+    parser.add_argument('--okada-dip', type=float, nargs=2, default=[0, 90], help="Dip angle range (degrees) (default: %(default)s).")
+    parser.add_argument('--okada-slip', type=float, nargs=2, default=[0, 10], help="Slip amount range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-rake', type=float, nargs=2, default=[0, 0], help="Rake angle range (degrees) (default: %(default)s).")
+    parser.add_argument('--okada-opening', type=float, nargs=2, default=[0.0, 1.0], help="Opening displacement range (meters) (default: %(default)s).")
 
     # Parse arguments
     inps = parser.parse_args()
