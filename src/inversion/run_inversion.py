@@ -37,7 +37,7 @@ def create_parser():
     parser.add_argument('--weight-gps', type=float, default=0.0, help="Weight for GPS data (default: 1.0).")
     parser.add_argument('--show', action='store_true', help="Show the plot.")
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
-    parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID (default: %(default)s).")
+    parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID, 0 for Natural Neighbor 1 for Bayesian (default: %(default)s).")
 
     # Mogi parameters
     parser.add_argument('--mogi-volume', type=float, nargs=2, default=[1e6, 2e7], help="Mogi volume range (default: %(default)s).")
