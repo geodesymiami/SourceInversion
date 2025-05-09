@@ -1,4 +1,4 @@
 {
     "decomposition": "--folder CampiFlegrei --satellite Sen --method uniform --show",
-    "inversion": "--folder CampiFlegrei --satellite Sen --show"
+    "inversion": "--folder CampiFlegrei --satellite Sen --model mogi --show"
 }
