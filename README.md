@@ -1,8 +1,8 @@
 # SourceInversion
 
-Add VSM to pythonpath (we haven't added anything on the environment.bash yet)
+Add to pythonpath (we haven't added anything on the environment.bash yet)
 ```
-export PYTHONPATH=$$RSMASINSAR_HOME/tools/VSM/VSM:$PYTHONPATH
+export PYTHONPATH=/work2/09580/gdisilvestro/stampede3/code/rsmas_insar/tools/SourceInversion:$PYTHONPATH
 ```
 
 ## Segguested
