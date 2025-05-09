@@ -2,3 +2,5 @@
 src/inversion/__pycache__
 .vscode
 .vscode/launch.json
+*.pyc
+__pycache__/
