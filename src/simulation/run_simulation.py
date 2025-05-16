@@ -25,7 +25,7 @@ def create_parser():
 
     # Add arguments
     parser.add_argument('--folder', type=str, required=True, help="Path to the folder.")
-    parser.add_argument('--satellite', type=str, default=None, choices=['Sen', 'Csk'], help="Satellite name.")
+    parser.add_argument('--satellite', type=str, default='Sen', choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
     parser.add_argument('--shear', type=float, default=0.5, help="Shear value (default: %(default)s).")
     parser.add_argument('--poisson', type=float, dest='nu', default=0.25, help="Poisson ratio (default: %(default)s).")
@@ -40,6 +40,29 @@ def create_parser():
     parser.add_argument('--show', action='store_true', help="Show the plot.")
     parser.add_argument('--noise', type=float, default=0.0, help="Noise value (default: %(default)s).")
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
+
+    parser.add_argument('--mogi-volume', type=float, nargs=2, default=[1e6, 2e7], help="Mogi volume range (default: %(default)s).")
+
+    # Penny parameters
+    parser.add_argument('--penny-radius', type=float, nargs=2, default=[800, 800], help="Penny radius range (default: %(default)s).")
+    parser.add_argument('--penny-dp_mu', type=float, nargs=2, default=[0.0001, 0.01], help="Penny dp/mu range (default: %(default)s).")
+
+    # Spheroid example
+    parser.add_argument('--spheroid-strike', type=float, nargs=2, default=[0, 360], help="Spheroid strike range (default: %(default)s).")
+    parser.add_argument('--spheroid-dip', type=float, nargs=2, default=[0, 90], help="Spheroid dip range (default: %(default)s).")
+    parser.add_argument('--spheroid-axis-ratio', type=float, nargs=2, default=[0.5, 1], help="Spheroid axis ratio range (default: %(default)s).")
+    parser.add_argument('--spheroid-semi-axis', type=float, nargs=2, default=[500, 3000], help="Spheroid semi-axis range (default: %(default)s).")
+    parser.add_argument('--spheroid-dp_mu', type=float, nargs=2, default=[0.0001, 0.01], help="Spheroid dp/mu range (default: %(default)s).")
+
+    # Okada / Dislocation (model id = 5 R)
+    parser.add_argument('--okada-length', type=float, nargs=2, default=[1000, 5000], help="Fault length range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-width', type=float, nargs=2, default=[1000, 5000], help="Fault width range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-strike', type=float, nargs=2, default=[0, 360], help="Strike angle range (degrees) (default: %(default)s).")
+    parser.add_argument('--okada-dip', type=float, nargs=2, default=[0, 90], help="Dip angle range (degrees) (default: %(default)s).")
+    parser.add_argument('--okada-slip', type=float, nargs=2, default=[0, 10], help="Slip amount range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-rake', type=float, nargs=2, default=[0, 0], help="Rake angle range (degrees) (default: %(default)s).")
+    parser.add_argument('--okada-opening', type=float, nargs=2, default=[0.0, 1.0], help="Opening displacement range (meters) (default: %(default)s).")
+
 
     # Parse arguments
     inps = parser.parse_args()
@@ -96,14 +119,16 @@ def compare(sim_out_folder):
 
     print("#" * 50)
     print("Inverted simulation results:")
-    print(f"xcen: {sim['xcen'].values}\nycen: {sim['ycen'].values}\ndepth: {sim['depth'].values}\ndVol: {sim['dVol'].values}\n")
+    for key in sim.keys():
+        print(f"{key}: {sim[key].values}")
     print("#" * 50)
     print("Inverted Observed results:")
-    print(f"xcen: {inf['xcen'].values}\nycen: {inf['ycen'].values}\ndepth: {inf['depth'].values}\ndVol: {inf['dVol'].values}\n")
+    for key in inf.keys():
+        print(f"{key}: {inf[key].values}")
     print("#" * 50)
     print("Difference:")
-    print(f"xcen: {sim['xcen'].values - inf['xcen'].values}\nycen: {sim['ycen'].values - inf['ycen'].values}\ndepth: {sim['depth'].values - inf['depth'].values}\ndVol: {sim['dVol'].values - inf['dVol'].values}\n")
-
+    for s,i in zip(sim.keys(), inf.keys()):
+        print(f"{s}: {sim[s].values - inf[i].values}")
 
 def main(iargs=None):
 
