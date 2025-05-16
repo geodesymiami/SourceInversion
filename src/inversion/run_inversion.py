@@ -54,8 +54,8 @@ def create_parser():
     parser.add_argument('--spheroid-dp_mu', type=float, nargs=2, default=[0.0001, 0.01], help="Spheroid dp/mu range (default: %(default)s).")
 
     # Okada / Dislocation (model id = 5 R)
-    parser.add_argument('--okada-length', type=float, nargs=2, default=[1000, 5000], help="Fault length range (meters) (default: %(default)s).")
-    parser.add_argument('--okada-width', type=float, nargs=2, default=[1000, 5000], help="Fault width range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-length', type=float, nargs=2, default=[0, 5000], help="Fault length range (meters) (default: %(default)s).")
+    parser.add_argument('--okada-width', type=float, nargs=2, default=[0, 5000], help="Fault width range (meters) (default: %(default)s).")
     parser.add_argument('--okada-strike', type=float, nargs=2, default=[0, 360], help="Strike angle range (degrees) (default: %(default)s).")
     parser.add_argument('--okada-dip', type=float, nargs=2, default=[0, 90], help="Dip angle range (degrees) (default: %(default)s).")
     parser.add_argument('--okada-slip', type=float, nargs=2, default=[0, 10], help="Slip amount range (meters) (default: %(default)s).")
