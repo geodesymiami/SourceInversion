@@ -26,7 +26,7 @@ Each step has its own arguments defined in the [template](template.json)
 I.e.:
 ```
 {
-    "decomposition": "--folder CampiFlegrei --satellite Sen --method uniform --show",
+    "downsample": "--folder CampiFlegrei --satellite Sen --method uniform --show",
     "inversion": "--folder CampiFlegrei --satellite Sen --model mogi --show"
 }
 ```
