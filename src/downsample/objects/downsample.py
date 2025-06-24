@@ -130,6 +130,9 @@ class Downsample:
 
     def _LOS(self):
         self.los_az_angle = float(self.metadata['HEADING'])
+        if False:
+            self.incident_angle = float(self.metadata['CENTER_INCIDENCE_ANGLE'])
+        self.incident = np.full(len(self.z), np.nanmean(self.incident_angle))
         self.ref_lat = float(self.metadata['REF_LAT'])
         self.ref_lon = float(self.metadata['REF_LON'])
 

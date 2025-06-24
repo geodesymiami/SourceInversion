@@ -21,19 +21,19 @@ def load_template(template_path):
         sys.exit(1)
 
 
-def run_decomposition(args):
+def run_downsample(args):
     """
-    Run the decomposition module in the 'base' conda environment.
+    Run the downsample module in the 'base' conda environment.
     """
     try:
         cmd = [
             "bash", "-c",
-            f"source {os.getenv('RSMASINSAR_HOME')}/tools/miniforge3/etc/profile.d/conda.sh && conda activate base && python src/decomposition/run_decomposition.py {args}"
+            f"source {os.getenv('RSMASINSAR_HOME')}/tools/miniforge3/etc/profile.d/conda.sh && conda activate base && python src/downsample/run_downsample.py {args}"
         ]
-        print(f"Running decomposition command: {' '.join(cmd)}\n")
+        print(f"Running downsample command: {' '.join(cmd)}\n")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"Error running decomposition: {e}")
+        print(f"Error running downsample: {e}")
         sys.exit(1)
 
 
@@ -60,13 +60,13 @@ def main():
     # Load arguments from the template file
     template = load_template(template_path)
 
-    # Extract arguments for decomposition and inversion
-    decomp_args = template.get("decomposition", "")
+    # Extract arguments for downsample and inversion
+    decomp_args = template.get("downsample", "")
     inversion_args = template.get("inversion", "")
 
-    # Run decomposition
-    print("Running decomposition...\n")
-    run_decomposition(decomp_args)
+    # Run downsample
+    print("Running downsampling...\n")
+    run_downsample(decomp_args)
 
     # Run inversion
     print("Running inversion...\n")
