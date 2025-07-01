@@ -24,7 +24,7 @@ def create_parser():
     parser.add_argument('--folder', type=str, required=True, help="Path to the folder.")
     parser.add_argument('--satellite', type=str, nargs='+', default=['Sen'], help="Satellite names.")
     parser.add_argument('--method', choices=['uniform', 'quadtree'], default='uniform', help="Downsampling method.")
-    parser.add_argument('--downsample-factor', type=int, default=3, help="Reduce the number of pixels for uniform method(default:  %(default)s).")
+    parser.add_argument('--downsample-factor', type=int,dest="reduce", default=3, help="Reduce the number of pixels for uniform method(default:  %(default)s).")
     parser.add_argument("--epsilon", type=float, default=0.0029, help="Epsilon value for quadtree method (default:  %(default)s)")
     parser.add_argument("--tile-size-max", type=float, default=0.02, help="Maximum tile size for quadtree method (default:  %(default)s)")
     parser.add_argument("--tile-size-min", type=float, default=0.002, help="Minimum tile size for quadtree method (default: %(default)s)")
