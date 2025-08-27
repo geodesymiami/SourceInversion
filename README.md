@@ -1,18 +1,18 @@
 # SourceInversion
 ## Define `SOURCEINVERSION_HOME` folder
 
-```
+```bash
 export SOURCEINVERSION_HOME=path/to/code/SourceInversion
 ```
 
 Add to pythonpath (we haven't added anything on the environment.bash yet)
-```
+```bash
 export PATH=${SOURCEINVERSION_HOME}/src/cli:$PATH
 export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
 ```
 
 ## Clone VSM and initialize as a package
-```
+```bash
 git clone https://github.com/EliTras/VSM.git ${SOURCEINVERSION_HOME}/
 touch ${SOURCEINVERSION_HOME}/VSM/__init__.py
 ```
@@ -21,13 +21,13 @@ touch ${SOURCEINVERSION_HOME}/VSM/__init__.py
 ### Run each step separatedly
 
 Downsample
-```
-src/cli/run_downsample --folder Chiles --satellite Sen --period=20220531:20220930 --method uniform --show
+```bash
+run_downsample --folder Chiles --satellite Sen --period=20220531:20220930 --method uniform --show
 ```
 
 Inversion
-```
-src/cli/run_inversion --folder Chiles --satellite Sen --period=20220531:20220930 --show --model mogi
+```bash
+run_inversion --folder Chiles --satellite Sen --period=20220531:20220930 --show --model mogi
 ```
 
 ## To test
@@ -44,6 +44,6 @@ I.e.:
 ```
 Run the command
 
-```
-src/cli/run_all.py
+```bash
+run_all.py
 ```
