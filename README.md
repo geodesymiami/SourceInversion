@@ -11,6 +11,12 @@ export PATH=${SOURCEINVERSION_HOME}/src/cli:$PATH
 export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
 ```
 
+## Clone VSM and initialize as a package
+```
+git clone https://github.com/EliTras/VSM.git ${SOURCEINVERSION_HOME}/
+touch ${SOURCEINVERSION_HOME}/VSM/__init__.py
+```
+
 ## Suggested
 ### Run each step separatedly
 
