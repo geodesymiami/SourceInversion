@@ -1,21 +1,33 @@
 # SourceInversion
+## Define `SOURCEINVERSION_HOME` folder
+
+```bash
+export SOURCEINVERSION_HOME=path/to/code/SourceInversion
+```
 
 Add to pythonpath (we haven't added anything on the environment.bash yet)
-```
-export PYTHONPATH=/work2/09580/gdisilvestro/stampede3/code/rsmas_insar/tools/SourceInversion:$PYTHONPATH
+```bash
+export PATH=${SOURCEINVERSION_HOME}/src/cli:$PATH
+export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
 ```
 
-## Segguested
+## Clone VSM and initialize as a package
+```bash
+git clone https://github.com/EliTras/VSM.git ${SOURCEINVERSION_HOME}/src/ 
+touch ${SOURCEINVERSION_HOME}/src/VSM/__init__.py
+```
+
+## Suggested
 ### Run each step separatedly
 
 Downsample
-```
-src/cli/run_downsample --folder Chiles --satellite Sen --period=20220531:20220930 --method uniform --show
+```bash
+run_downsample --folder Chiles --satellite Sen --period=20220531:20220930 --method uniform --show
 ```
 
 Inversion
-```
-src/cli/run_inversion --folder Chiles --satellite Sen --period=20220531:20220930 --show --model mogi
+```bash
+run_inversion --folder Chiles --satellite Sen --period=20220531:20220930 --show --model mogi
 ```
 
 ## To test
@@ -26,12 +38,12 @@ Each step has its own arguments defined in the [template](template.json)
 I.e.:
 ```
 {
-    "decomposition": "--folder CampiFlegrei --satellite Sen --method uniform --show",
+    "downsample": "--folder CampiFlegrei --satellite Sen --method uniform --show",
     "inversion": "--folder CampiFlegrei --satellite Sen --model mogi --show"
 }
 ```
 Run the command
 
-```
-src/cli/run_all.py
+```bash
+run_all.py
 ```
