@@ -1,11 +1,17 @@
 # SourceInversion
+## Define `SOURCEINVERSION_HOME` folder
+
+```
+export SOURCEINVERSION_HOME=path/to/code/SourceInversion
+```
 
 Add to pythonpath (we haven't added anything on the environment.bash yet)
 ```
-export PYTHONPATH=/work2/09580/gdisilvestro/stampede3/code/rsmas_insar/tools/SourceInversion:$PYTHONPATH
+export PATH=${SOURCEINVERSION_HOME}/src/cli:$PATH
+export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
 ```
 
-## Segguested
+## Suggested
 ### Run each step separatedly
 
 Downsample
