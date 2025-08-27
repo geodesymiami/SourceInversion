@@ -4,3 +4,4 @@ src/inversion/__pycache__
 .vscode/launch.json
 *.pyc
 __pycache__/
+src/VSM

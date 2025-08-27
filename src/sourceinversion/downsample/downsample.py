@@ -6,8 +6,8 @@ import argparse
 
 import matplotlib.pyplot as plt
 from mintpy.cli.save_kite import main as skite
-from src.shared.csv_functions import displacement_csv
-from src.decomposition.objects.downsample import Downsample
+from sourceinversion.shared.csv_functions import displacement_csv
+from sourceinversion.downsample.objects.downsample import Downsample
 
 EXAMPLE = """
         run_decomposition.py --folder CampiFlegrei --satellite Sen --method uniform --show

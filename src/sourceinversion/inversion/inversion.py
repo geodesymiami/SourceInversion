@@ -7,9 +7,9 @@ import VSM
 import glob
 import argparse
 import pandas as pd
-from src.shared.plot import plot_results as plot
-from src.shared.csv_functions import results_csv
-from src.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DEFS
+from sourceinversion.shared.plot import plot_results as plot
+from sourceinversion.shared.csv_functions import results_csv
+from sourceinversion.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DEFS
 
 
 EXAMPLE = """

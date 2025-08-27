@@ -7,9 +7,9 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from src.shared.csv_functions import read_csv, displacement_csv 
-from src.simulation.simulate import main as simulate
-from src.inversion.run_inversion import main as inversion
+from sourceinversion.shared.csv_functions import read_csv, displacement_csv 
+from sourceinversion.simulation.simulate import main as simulate
+from sourceinversion.inversion.inversion import main as inversion
 
 
 EXAMPLE = """

@@ -1,11 +1,8 @@
 import numpy as np
-from mintpy.utils import (
-    readfile,
-    utils as ut,
-)
+from mintpy.utils import readfile
 from mintpy import subset
 from kite import Scene
-from src.shared.helper_functions import extent2meshgrid, convert_to_utm
+from sourceinversion.shared.helper_functions import extent2meshgrid, convert_to_utm
 
 
 class Downsample:
