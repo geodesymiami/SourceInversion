@@ -6,8 +6,13 @@ import argparse
 
 import matplotlib.pyplot as plt
 from mintpy.cli.save_kite import main as skite
+<<<<<<<< HEAD:src/downsample/run_downsample.py
 from src.shared.csv_functions import displacement_csv
 from src.downsample.objects.downsample import Downsample
+========
+from sourceinversion.shared.csv_functions import displacement_csv
+from src.sourceinversion.downsample.objects.downsample_methods import Downsample
+>>>>>>>> dev:src/sourceinversion/downsample/downsample.py
 
 EXAMPLE = """
         run_downsample.py --folder CampiFlegrei --satellite Sen --method uniform --show

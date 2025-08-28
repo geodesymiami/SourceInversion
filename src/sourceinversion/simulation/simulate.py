@@ -1,5 +1,5 @@
 import sys
-import VSM_forward
+import VSM.VSM.VSM_forward as VSM_forward
 
 
 def print_msg(model, x, y, parameters):
