@@ -1,7 +1,8 @@
 import numpy as np
-from mintpy.utils import readfile
-from mintpy import subset
 from kite import Scene
+from mintpy import subset
+from scipy.ndimage import zoom
+from mintpy.utils import readfile
 from sourceinversion.shared.helper_functions import extent2meshgrid, convert_to_utm
 
 
@@ -78,42 +79,44 @@ class Downsample:
         """
         # Skip value every 'skip' step
         skip = reduction
-        # coord = ut.coordinate(metadata)
-        pix_box, geo_box = subset.subset_input_dict2box({"subset_lon": None,
-                                                        "subset_lat": None,
-                                                        "subset_x": None,
-                                                        "subset_y": None}, self.metadata)
+
         print("#" * 50)
         print(f"Reducing {self.velocity_file} by a factor of {reduction}.\n")
 
-        z = self.velocity[:: skip, ::skip]
-        x, y = extent2meshgrid(extent=geo_box, ds_shape=z.shape)
+        # Slice and flatten arrays
+        z = self.velocity[::skip, ::skip].flatten()
+        x = self.longitude[::skip, ::skip].flatten()
+        y = self.latitude[::skip, ::skip].flatten()
+        incident_angle = self.incident_angle[::skip, ::skip].flatten()
+        azimuth_angle = self.azimuth_angle[::skip, ::skip].flatten()
 
-        z = z.flatten()
-        mask = np.isnan(z)
-        self.length = len(z[~mask])
+        # Apply mask to remove NaN values
+        mask = ~np.isnan(z)
+        self.length = np.sum(mask)
 
-        x, y = convert_to_utm(longitude=x, latitude=y)
+        # Convert coordinates to UTM and apply mask
+        x, y = convert_to_utm(longitude=x[mask], latitude=y[mask])
 
-        self.x = x[~mask]
-        self.y = y[~mask]
-        self.z = z[~mask]
+        # Assign filtered values to instance variables
+        self.z = z[mask]
+        self.x = x
+        self.y = y
+        self.incident = incident_angle[mask]
+        self.azimuth = azimuth_angle[mask]
 
-
-        n_rows, n_cols = self.velocity[:: skip, ::skip].shape
-        lon_min, lat_max, lon_max, lat_min = geo_box
-        lats = np.linspace(lat_max, lat_min, n_rows)
-        lons = np.linspace(lon_min, lon_max, n_cols)
-        mesh_lons, mesh_lats = np.meshgrid(lons, lats)
-        self.incident = self._extract_geometry_values(
-            lats=mesh_lats.flatten(),
-            lons=mesh_lons.flatten(),
-            lat_min=lat_min, lat_max=lat_max,
-            lon_min=lon_min, lon_max=lon_max,
-            shape=self.incident_angle.shape
-        )
-        self.incident = self.incident[~mask]
-
+        # n_rows, n_cols = self.velocity[:: skip, ::skip].shape
+        # lon_min, lat_max, lon_max, lat_min = np.nanmin(x), np.nanmax(y), np.nanmax(x), np.nanmin(y)
+        # lats = np.linspace(lat_max, lat_min, n_rows)
+        # lons = np.linspace(lon_min, lon_max, n_cols)
+        # mesh_lons, mesh_lats = np.meshgrid(lons, lats)
+        # self.incident = self._extract_geometry_values(
+        #     lats=mesh_lats.flatten(),
+        #     lons=mesh_lons.flatten(),
+        #     lat_min=lat_min, lat_max=lat_max,
+        #     lon_min=lon_min, lon_max=lon_max,
+        #     shape=self.incident_angle.shape
+        # )
+        # self.incident = self.incident[~mask]
 
         self._LOS()
 
@@ -174,12 +177,11 @@ class Downsample:
 
 
     def _LOS(self):
-        self.los_az_angle = float(self.metadata['HEADING'])
         self.ref_lat = float(self.metadata['REF_LAT'])
         self.ref_lon = float(self.metadata['REF_LON'])
 
-        self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.los_az_angle))
-        self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.los_az_angle))
+        self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.azimuth))
+        self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth))
         self.losz = np.cos(np.deg2rad(self.incident))
 
         self.err = np.full(len(self.z), 0.1)
