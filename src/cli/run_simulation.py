@@ -7,9 +7,11 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sourceinversion.shared.csv_functions import read_csv, displacement_csv 
 from sourceinversion.simulation.simulate import main as simulate
 from sourceinversion.inversion.inversion import main as inversion
+from sourceinversion.shared.csv_functions import read_csv, displacement_csv
+from sourceinversion.shared.argument_parser import add_mogi_parameters, add_penny_parameters, add_spheroid_parameters, add_okada_parameters
+
 
 
 EXAMPLE = """
@@ -32,14 +34,18 @@ def create_parser():
     parser.add_argument('--x-range', type=float, nargs=2, default=[float('inf'), float('-inf')], help="X range.")
     parser.add_argument('--y-range', type=float, nargs=2, default=[float('inf'), float('-inf')], help="Y range.")
     parser.add_argument('--z-range', type=float, nargs=2, default=(0, 5000), help="Z range (default: %(default)s).")
-    parser.add_argument('--volume', type=str, default='1.e6 2.e7', help="Volume value (default: %(default)s).")
-    parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID (default: %(default)s).")
     parser.add_argument('--weight-sar', type=float, default=1.0, help="Weight for SAR data (default: %(default)s).")
     parser.add_argument('--weight-gps', type=float, default=0.0, help="Weight for GPS data (default: %(default)s).")
     parser.add_argument('--model', type=str, nargs='+', choices=['mogi', 'point', 'penny', 'spheroid', 'moment', 'okada'], default=['mogi'], help="One or more models: Mogi (1958), McTigue point source (1987), Fialko et al.(2001), Penny-shaped crack, Yang et al. (1988). Spheroid, Davis (1986) Moment tensor, Okada 1985.")
     parser.add_argument('--show', action='store_true', help="Show the plot.")
     parser.add_argument('--noise', type=float, default=0.0, help="Noise value (default: %(default)s).")
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
+    parser.add_argument('--sampling_id', type=str, choices=['0', '1'], default='0', help="Sampling ID (default: %(default)s).")
+
+    parser = add_mogi_parameters(parser)
+    parser = add_penny_parameters(parser)
+    parser = add_spheroid_parameters(parser)
+    parser = add_okada_parameters(parser)
 
     # Parse arguments
     inps = parser.parse_args()
