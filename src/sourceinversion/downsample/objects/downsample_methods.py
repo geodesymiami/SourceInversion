@@ -10,11 +10,59 @@ class Downsample:
         self.velocity_file = velocity_file
         self.geometry_file = geometry_file
         self.velocity, self.metadata = readfile.read(self.velocity_file)
+
+
         self.incident_angle = readfile.read(self.geometry_file, datasetName='/incidenceAngle')[0]
+        self.azimuth_angle = readfile.read(self.geometry_file, datasetName='/azimuthAngle')[0]
+        self.latitude = readfile.read(self.geometry_file, datasetName='latitude')[0]
+        self.longitude = readfile.read(self.geometry_file, datasetName='longitude')[0]
         self.kite_file = kite_file
+
+        self._resize()
 
         print("#" * 50)
         print(f"Loading {self.velocity_file}.\n")
+
+    def _resize(self):
+        if self.incident_angle.shape != self.velocity.shape:
+            if all(dim > 0 for dim in self.incident_angle.shape):
+                zoom_factors = (
+                    self.velocity.shape[0] / self.incident_angle.shape[0],
+                    self.velocity.shape[1] / self.incident_angle.shape[1],
+                )
+                self.incident_angle = zoom(self.incident_angle, zoom_factors, order=1)
+            else:
+                raise ValueError("Invalid shape for incident_angle: {}".format(self.incident_angle.shape))
+
+        if self.azimuth_angle.shape != self.velocity.shape:
+            if all(dim > 0 for dim in self.azimuth_angle.shape):
+                zoom_factors = (
+                    self.velocity.shape[0] / self.azimuth_angle.shape[0],
+                    self.velocity.shape[1] / self.azimuth_angle.shape[1],
+                )
+                self.azimuth_angle = zoom(self.azimuth_angle, zoom_factors, order=1)  # Linear interpolation
+            else:
+                raise ValueError("Invalid shape for azimuth_angle: {}".format(self.azimuth_angle.shape))
+
+        if self.latitude.shape != self.velocity.shape:
+            if all(dim > 0 for dim in self.latitude.shape):
+                zoom_factors = (
+                    self.velocity.shape[0] / self.latitude.shape[0],
+                    self.velocity.shape[1] / self.latitude.shape[1],
+                )
+                self.latitude = zoom(self.latitude, zoom_factors, order=1)
+            else:
+                raise ValueError("Invalid shape for latitude: {}".format(self.latitude.shape))
+
+        if self.longitude.shape != self.velocity.shape:
+            if all(dim > 0 for dim in self.longitude.shape):
+                zoom_factors = (
+                    self.velocity.shape[0] / self.longitude.shape[0],
+                    self.velocity.shape[1] / self.longitude.shape[1],
+                )
+                self.longitude = zoom(self.longitude, zoom_factors, order=1)
+            else:
+                raise ValueError("Invalid shape for longitude: {}".format(self.longitude.shape))
 
     def uniform(self, reduction=3):
         """Downsample the velocity data using a mask and geometry file.
