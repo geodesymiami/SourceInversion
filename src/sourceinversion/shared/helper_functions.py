@@ -117,10 +117,10 @@ def convert_to_utm(longitude, latitude):
         tuple: Arrays of UTM Eastings (x) and Northings (y).
     """
     # Calculate the UTM zone based on the longitude
-    utm_zone = int((longitude.mean() + 180) // 6) + 1
+    utm_zone = int((np.nanmean(longitude) + 180) // 6) + 1
 
     # Determine the hemisphere based on latitude
-    hemisphere = 'north' if latitude.mean() >= 0 else 'south'
+    hemisphere = 'north' if np.nanmean(latitude) >= 0 else 'south'
 
     # Determine the EPSG code based on the UTM zone and hemisphere
     epsg_code = f"326{utm_zone:02d}" if hemisphere == 'north' else f"327{utm_zone:02d}"
