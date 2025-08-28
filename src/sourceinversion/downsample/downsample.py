@@ -10,7 +10,7 @@ from sourceinversion.shared.csv_functions import displacement_csv
 from src.sourceinversion.downsample.objects.downsample_methods import Downsample
 
 EXAMPLE = """
-        run_decomposition.py --folder CampiFlegrei --satellite Sen --method uniform --show
+        run_downsample.py --folder CampiFlegrei --satellite Sen --method uniform --show
 """
 SCRATCHDIR = os.getenv('SCRATCHDIR')
 
