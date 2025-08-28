@@ -3,7 +3,7 @@
 import os
 import re
 import sys
-import VSM
+from VSM.VSM import VSM
 import glob
 import argparse
 import pandas as pd
@@ -142,6 +142,17 @@ def plot_results(inps, output_folder):
             plot(east, north, data, synth)
 
 
+def gather_input_sar(inps, base_folder, match_str):
+    input_sar = ''
+    for f in os.listdir(base_folder):
+        if f.endswith('.csv') and match_str in f:
+            input_sar += os.path.join(base_folder, f) + ' '
+            df = pd.read_csv(os.path.join(base_folder, f))
+            inps.x_range = define_range(inps.x_range, df['xx'])
+            inps.y_range = define_range(inps.y_range, df['yy'])
+    return input_sar
+
+
 def main(iargs=None):
     print("#" * 50)
     print("Starting Inversion Module...")
@@ -155,15 +166,6 @@ def main(iargs=None):
         regex = re.compile(pattern)
         folder_list = [f for f in os.listdir(inps.folder_path) if os.path.isdir(os.path.join(inps.folder_path, f))]
 
-        def gather_input_sar(base_folder, match_str):
-            input_sar = ''
-            for f in os.listdir(base_folder):
-                if f.endswith('.csv') and match_str in f:
-                    input_sar += os.path.join(base_folder, f) + ' '
-                    df = pd.read_csv(os.path.join(base_folder, f))
-                    inps.x_range = define_range(inps.x_range, df['xx'])
-                    inps.y_range = define_range(inps.y_range, df['yy'])
-            return input_sar
 
         if inps.period_folder:
             for period in inps.period_folder:
@@ -180,7 +182,7 @@ def main(iargs=None):
                             continue
 
                         os.makedirs(output_folder, exist_ok=True)
-                        input_sar += gather_input_sar(period_folder, match.group(0))
+                        input_sar += gather_input_sar(inps, period_folder, match.group(0))
 
                 model_inputs = extract_model_parameters(inps)
                 run_vsm(inps, output_folder, input_sar, model_inputs)
@@ -193,7 +195,7 @@ def main(iargs=None):
                 match = regex.match(folder)
                 if match:
                     input_folder = os.path.join(inps.folder_path, folder)
-                    input_sar += gather_input_sar(input_folder, match.group(0))
+                    input_sar += gather_input_sar(inps, input_folder, match.group(0))
 
             model_inputs = extract_model_parameters(inps)
             run_vsm(inps, inps.folder_path, input_sar, model_inputs)
