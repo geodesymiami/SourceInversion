@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from sourceinversion.shared.plot import plot_results as plot
 from sourceinversion.shared.csv_functions import results_csv, read_best_values
 from sourceinversion.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DEFS
-from sourceinversion.shared.argument_parser import add_mogi_parameters, add_penny_parameters, add_spheroid_parameters, add_okada_parameters, add_sampling_parameters
+from sourceinversion.shared.argument_parser import add_mogi_parameters, add_penny_parameters, add_spheroid_parameters, add_okada_parameters, add_sampling_parameters, add_coordinates_parameters
 
 
 EXAMPLE = """
@@ -31,9 +31,6 @@ def create_parser():
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
     parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: 0.5).")
     parser.add_argument('--poisson', type=float, dest='nu', default=0.25, help="Poisson ratio (default: %(default)s).")
-    parser.add_argument('--x-range', type=float, nargs='*', default=[float('inf'), float('-inf')], help="X range (provide one or two values).")
-    parser.add_argument('--y-range', type=float, nargs='*', default=[float('inf'), float('-inf')], help="Y range (provide one or two values).")
-    parser.add_argument('--z-range', type=float, nargs=2, default=(0, 5000), help="Z range (default: %(default)s).")
     parser.add_argument('--model', type=str, choices=['mogi', 'penny', 'spheroid', 'moment', 'okada'], nargs='+', help='Source model(s) to include.')
     parser.add_argument('--weight-sar', type=float, default=1.0, help="Weight for SAR data (default: 1.0).")
     parser.add_argument('--weight-gps', type=float, default=0.0, help="Weight for GPS data (default: 1.0).")
@@ -46,6 +43,7 @@ def create_parser():
     parser = add_spheroid_parameters(parser)
     parser = add_okada_parameters(parser)
     parser = add_sampling_parameters(parser)
+    parser = add_coordinates_parameters(parser)
 
     # Parse arguments
     inps = parser.parse_args()
@@ -157,7 +155,6 @@ def plot_results(inps, output_folder, period=None):
 
 def gather_input_sar(inps, base_folder, match_str):
     input_sar = ''
-    scale_factor = 0.15
     for f in os.listdir(base_folder):
         if f.endswith('.csv') and match_str in f:
             input_sar += os.path.join(base_folder, f) + ' '
@@ -170,8 +167,8 @@ def gather_input_sar(inps, base_folder, match_str):
                     data_range = define_range([float('inf'), float('-inf')], df['xx'])
                     range_width = data_range[1] - data_range[0]
                     inps.x_range = [
-                        inps.x_range[0] - range_width * scale_factor,
-                        inps.x_range[0] + range_width * scale_factor
+                        inps.x_range[0] - range_width * inps.scaling_box,
+                        inps.x_range[0] + range_width * inps.scaling_box
                     ]
 
             if float('inf') in inps.y_range:
@@ -181,8 +178,8 @@ def gather_input_sar(inps, base_folder, match_str):
                     data_range = define_range([float('inf'), float('-inf')], df['yy'])
                     range_width = data_range[1] - data_range[0]
                     inps.y_range = [
-                        inps.y_range[0] - range_width * scale_factor,
-                        inps.y_range[0] + range_width * scale_factor
+                        inps.y_range[0] - range_width * inps.scaling_box,
+                        inps.y_range[0] + range_width * inps.scaling_box
                     ]
     return input_sar
 

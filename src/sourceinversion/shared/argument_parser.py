@@ -44,3 +44,12 @@ def add_sampling_parameters(parser):
     sampling.add_argument('--p3', type=str, default='30', help="Number of BI steps (default: %(default)s).")
     sampling.add_argument('--burn-in', type=str, default=2000, help="Number of initial models discarded as part of the burn-in phase (default: %(default)s).")
     return parser
+
+
+def add_coordinates_parameters(parser):
+    coords = parser.add_argument_group('Coordinates parameters')
+    coords.add_argument('--x-range', type=float, nargs='*', default=[float('inf'), float('-inf')], help="X range (provide one or two values).")
+    coords.add_argument('--y-range', type=float, nargs='*', default=[float('inf'), float('-inf')], help="Y range (provide one or two values).")
+    coords.add_argument('--z-range', type=float, nargs=2, default=(0, 5000), help="Z range (default: %(default)s).")
+    coords.add_argument('--scaling-box', type=float, default=0.15, help="Scaling factor for search box - x and y range - (default: %(default)s).")
+    return parser

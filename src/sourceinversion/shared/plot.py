@@ -23,7 +23,7 @@ def plot_results(inps, east, north, data, synth, sources_center, model, period=N
 
     residuals = data - synth
     fig = plt.figure(figsize=(15, 6))
-    flight_direction = 'Ascending' if 'A' in inps.satellite[0] else 'Descending'
+
     fig.suptitle(f"Model: {', '.join(str(m) for m in model)}" + (f", Period: {period.replace('_', ' ')}" if period else ""), fontsize=10)
 
     # Calculate color limits based on the data panel
