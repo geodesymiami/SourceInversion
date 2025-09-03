@@ -5,6 +5,8 @@ import sys
 import argparse
 
 import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import colors, cm
 from mintpy.cli.save_kite import main as skite
 from sourceinversion.shared.csv_functions import displacement_csv
 from src.sourceinversion.downsample.objects.downsample_methods import Downsample
@@ -28,8 +30,10 @@ def create_parser():
     parser.add_argument("--epsilon", type=float, default=0.0029, help="Epsilon value (default:  %(default)s)")
     parser.add_argument("--tile-size-max", type=float, default=0.02, help="Maximum tile size (default:  %(default)s)")
     parser.add_argument("--tile-size-min", type=float, default=0.002, help="Minimum tile size (default: %(default)s)")
-    parser.add_argument('--show', action='store_true', help="Show the plot.")
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
+    parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
+    parser.add_argument('--color-map', type=str, default='viridis', help="Colormap for plotting (default: %(default)s).")
+    parser.add_argument('--style', choices=['scatter', 'image'], default='image', help="Plotting style (default: %(default)s).")
 
     # Parse arguments
     inps = parser.parse_args()
@@ -67,18 +71,43 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
     if inps.method == 'uniform':
         down = Downsample(velocity_file=velocity_file[0], geometry_file=geom_file[0])
         down.uniform(reduction=inps.reduce)
+        if inps.show:
+            fig, ax = plt.subplots()
+            if inps.style == 'scatter':
+                ax.scatter(down.x, down.y, c=down.z, s=1, color=inps.color_map)
+            elif inps.style == 'image':
+                ax.imshow(down.imshow, cmap=inps.color_map)
 
     elif inps.method == 'quadtree':
         skite(kite_args)
         down = Downsample(velocity_file=velocity_file[0], kite_file=out_file + '.yml', geometry_file=geom_file[0])
         down.quadtree(epsilon=inps.epsilon, tile_size_max=inps.tile_size_max, tile_size_min=inps.tile_size_min)
+        if inps.show:
+            fig = plt.figure()
+            if inps.style == 'scatter':
+                ax = fig.add_subplot(111)
+                ax.scatter(down.x, down.y, c=down.z, s=1, cmap=inps.color_map)
+            elif inps.style == 'image':
+                ax = fig.gca()
+
+                limit = np.abs(down.qt.leaf_medians).max()
+                color_map = cm.ScalarMappable(
+                    norm=colors.Normalize(vmin=-limit, vmax=limit),
+                    cmap=cm.get_cmap(inps.color_map))
+
+                for rect, leaf in zip(down.qt.getMPLRectangles(), down.qt.leaves):
+                    color = color_map.to_rgba(leaf.median)
+                    rect.set_facecolor(color)
+                    ax.add_artist(rect)
+
+                ax.set_xlim(down.qt.leaf_eastings.min(), down.qt.leaf_eastings.max())
+                ax.set_ylim(down.qt.leaf_northings.min(), down.qt.leaf_northings.max())
+
 
     # Save the downsampled data
     displacement_csv(file=out_file, x=down.x, y=down.y, z=down.z, err=down.err, lose=down.lose, losn=down.losn, losz=down.losz)
 
     if inps.show:
-        fig, ax = plt.subplots()
-        ax.scatter(down.x, down.y, c=down.z, s=1)
         plt.show()
 
 

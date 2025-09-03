@@ -84,11 +84,17 @@ class Downsample:
         print(f"Reducing {self.velocity_file} by a factor of {reduction}.\n")
 
         # Slice and flatten arrays
-        z = self.velocity[::skip, ::skip].flatten()
-        x = self.longitude[::skip, ::skip].flatten()
-        y = self.latitude[::skip, ::skip].flatten()
-        incident_angle = self.incident_angle[::skip, ::skip].flatten()
-        azimuth_angle = self.azimuth_angle[::skip, ::skip].flatten()
+        self.imshow = self.velocity[::skip, ::skip]
+        sliced_x = self.longitude[::skip, ::skip]
+        sliced_y = self.latitude[::skip, ::skip]
+        sliced_incident_angle = self.incident_angle[::skip, ::skip]
+        sliced_azimuth_angle = self.azimuth_angle[::skip, ::skip]
+
+        z = self.imshow.flatten()
+        x = sliced_x.flatten()
+        y = sliced_y.flatten()
+        incident_angle = sliced_incident_angle.flatten()
+        azimuth_angle = sliced_azimuth_angle.flatten()
 
         # Apply mask to remove NaN values
         mask = ~np.isnan(z)
@@ -104,20 +110,6 @@ class Downsample:
         self.incident = incident_angle[mask]
         self.azimuth = azimuth_angle[mask]
 
-        # n_rows, n_cols = self.velocity[:: skip, ::skip].shape
-        # lon_min, lat_max, lon_max, lat_min = np.nanmin(x), np.nanmax(y), np.nanmax(x), np.nanmin(y)
-        # lats = np.linspace(lat_max, lat_min, n_rows)
-        # lons = np.linspace(lon_min, lon_max, n_cols)
-        # mesh_lons, mesh_lats = np.meshgrid(lons, lats)
-        # self.incident = self._extract_geometry_values(
-        #     lats=mesh_lats.flatten(),
-        #     lons=mesh_lons.flatten(),
-        #     lat_min=lat_min, lat_max=lat_max,
-        #     lon_min=lon_min, lon_max=lon_max,
-        #     shape=self.incident_angle.shape
-        # )
-        # self.incident = self.incident[~mask]
-
         self._LOS()
 
 
@@ -127,41 +119,42 @@ class Downsample:
         print("#" * 50)
         print(f"Reducing {self.kite_file} with Quadtree.\n")
 
-        qt = sc.quadtree
+        self.qt = sc.quadtree
 
         # Parametrisation of the quadtree
-        qt.epsilon = epsilon             # Variance threshold
-        qt.nan_allowed = nan_allowed     # Percentage of NaN values allowed per tile/leave
+        self.qt.epsilon = epsilon             # Variance threshold
+        self.qt.nan_allowed = nan_allowed     # Percentage of NaN values allowed per tile/leave
 
         # Be careful here, if you scene is referenced in degree use decimal values!
-        qt.tile_size_max = tile_size_max  # Maximum leave edge length in [m] or [deg]
-        qt.tile_size_min = tile_size_min   # Minimum leave edge length in [m] or [deg]
+        self.qt.tile_size_max = tile_size_max  # Maximum leave edge length in [m] or [deg]
+        self.qt.tile_size_min = tile_size_min   # Minimum leave edge length in [m] or [deg]
 
-        self.z = qt.leaf_medians
-        self.length = len(qt.leaf_eastings)
+        self.z = self.qt.leaf_medians
+        self.length = len(self.qt.leaf_eastings)
+        shape = self.incident_angle.shape
 
-        qt_lons = qt.leaf_coordinates[:, 0] + sc.frame.llLon
-        qt_lats = qt.leaf_coordinates[:, 1] + sc.frame.llLat
+        qt_lons = self.qt.leaf_coordinates[:, 0] + sc.frame.llLon
+        qt_lats = self.qt.leaf_coordinates[:, 1] + sc.frame.llLat
 
-        self.x, self.y = convert_to_utm(longitude=qt.leaf_coordinates[:, 0] + sc.frame.llLon, latitude=qt.leaf_coordinates[:, 1] + sc.frame.llLat)
+        self.x, self.y = convert_to_utm(longitude=self.qt.leaf_coordinates[:, 0] + sc.frame.llLon, latitude=self.qt.leaf_coordinates[:, 1] + sc.frame.llLat)
 
-        lat_min = qt_lats.min()
-        lat_max = qt_lats.max()
-        lon_min = qt_lons.min()
-        lon_max = qt_lons.max()
+        lat_min, lat_max = qt_lats.min(), qt_lats.max()
+        lon_min, lon_max = qt_lons.min(), qt_lons.max()
 
-        self.incident = self._extract_geometry_values(
+        self.incident, self.azimuth = self._extract_geometry_values(
             lats=qt_lats,
             lons=qt_lons,
             lat_min=lat_min, lat_max=lat_max,
             lon_min=lon_min, lon_max=lon_max,
-            shape=self.incident_angle.shape
+            shape=shape,
+            incident_angle=self.incident_angle,
+            azimuth_angle=self.azimuth_angle
         )
 
         self._LOS()
 
 
-    def _extract_geometry_values(self, lats, lons, lat_min, lat_max, lon_min, lon_max, shape):
+    def _extract_geometry_values(self, lats, lons, lat_min, lat_max, lon_min, lon_max, shape, incident_angle, azimuth_angle):
         """Extract geometry values from regular lat/lon grid at given coordinates."""
         n_rows, n_cols = shape
         lat_step = (lat_max - lat_min) / n_rows
@@ -173,15 +166,28 @@ class Downsample:
         row_idx = np.clip(row_idx, 0, n_rows - 1)
         col_idx = np.clip(col_idx, 0, n_cols - 1)
 
-        return self.incident_angle[row_idx, col_idx]
+        return incident_angle[row_idx, col_idx], azimuth_angle[row_idx, col_idx]
 
 
     def _LOS(self):
         self.ref_lat = float(self.metadata['REF_LAT'])
         self.ref_lon = float(self.metadata['REF_LON'])
+        heading = float(self.metadata['HEADING'])  # Assuming heading is in degrees
 
-        self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.azimuth))
-        self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth))
+        if False:
+            print(f"Mean Incident Angle (from geometry file): {np.nanmean(self.incident_angle)}")
+            print(f"Mean Azimuth Angle (from geometry file): {np.nanmean(self.azimuth_angle)}")  # !!! these values are wrong coming from geometry file !!!
+            print(f"Heading (from metadata): {heading}")
+
+        # Calculate LOS components using metadata values
+        self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(heading))
+        self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(heading))
         self.losz = np.cos(np.deg2rad(self.incident))
 
-        self.err = np.full(len(self.z), 0.1)
+        if False:
+            # !!! This is not correct because azimuth and incidence angles from geometry file !!!
+            self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.azimuth))
+            self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth))
+            self.losz = np.cos(np.deg2rad(self.incident))
+
+        self.err = np.full(len(self.z), 0.2)
