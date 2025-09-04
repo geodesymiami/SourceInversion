@@ -49,3 +49,5 @@ def plot_results(inps, east, north, data, synth, sources_center, model, period=N
     create_panel(ax2, east, north, residuals, 'Residual', 'bwr', -0.1, 0.1, sources_center=sources_center)
 
     ax.tick_params(axis='both', which='minor', direction='out', length=5, width=2, grid_color='b', grid_alpha=0.5)
+
+    return fig

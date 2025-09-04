@@ -2,7 +2,7 @@ import os
 
 def add_mogi_parameters(parser):
     mogi = parser.add_argument_group('Mogi parameters')
-    mogi.add_argument('--mogi-volume', type=float, nargs=2, default=[1e6, 2e7], help="Mogi volume range (default: %(default)s).")
+    mogi.add_argument('--mogi-volume', type=float, nargs=2, default=[1e4, 2e7], help="Mogi volume range (default: %(default)s).")
     return parser
 
 

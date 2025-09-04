@@ -172,22 +172,11 @@ class Downsample:
     def _LOS(self):
         self.ref_lat = float(self.metadata['REF_LAT'])
         self.ref_lon = float(self.metadata['REF_LON'])
-        heading = float(self.metadata['HEADING'])  # Assuming heading is in degrees
-
-        if False:
-            print(f"Mean Incident Angle (from geometry file): {np.nanmean(self.incident_angle)}")
-            print(f"Mean Azimuth Angle (from geometry file): {np.nanmean(self.azimuth_angle)}")  # !!! these values are wrong coming from geometry file !!!
-            print(f"Heading (from metadata): {heading}")
 
         # Calculate LOS components using metadata values
-        self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(heading))
-        self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(heading))
+        self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.azimuth)-np.pi/2)
+        self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth)-np.pi/2)
         self.losz = np.cos(np.deg2rad(self.incident))
 
-        if False:
-            # !!! This is not correct because azimuth and incidence angles from geometry file !!!
-            self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.azimuth))
-            self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth))
-            self.losz = np.cos(np.deg2rad(self.incident))
 
         self.err = np.full(len(self.z), 0.2)

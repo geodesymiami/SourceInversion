@@ -34,9 +34,10 @@ def create_parser():
     parser.add_argument('--model', type=str, choices=['mogi', 'penny', 'spheroid', 'moment', 'okada'], nargs='+', help='Source model(s) to include.')
     parser.add_argument('--weight-sar', type=float, default=1.0, help="Weight for SAR data (default: 1.0).")
     parser.add_argument('--weight-gps', type=float, default=0.0, help="Weight for GPS data (default: 1.0).")
-    parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
     parser.add_argument('--bbox', action='store_true', help="Show bounding box of x and y range on plot.")
+    parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
+    parser.add_argument('--save', action='store_true', help="Save the plot as PNG.")
 
     parser = add_mogi_parameters(parser)
     parser = add_penny_parameters(parser)
@@ -146,11 +147,13 @@ def plot_results(inps, output_folder, period=None):
         # raise FileNotFoundError(f"VSM_best.csv not found in {output_folder}")
         print(f"VSM_best.csv not found in {output_folder}")
         sources_center = None
-
+    figures = []
     for file in os.listdir(output_folder):
         if 'VSM_synth' in file and file.endswith('.csv'):
             east, north, data, synth = results_csv(os.path.join(output_folder, file))
-            plot(inps, east, north, data, synth, sources_center, inps.model, period)
+            figures.append(plot(inps, east, north, data, synth, sources_center, inps.model, period))
+
+    return figures
 
 
 def gather_input_sar(inps, base_folder, match_str):
@@ -184,6 +187,43 @@ def gather_input_sar(inps, base_folder, match_str):
     return input_sar
 
 
+def process_folder(inps, input_sar, period=None):
+    """Run inversion and plotting for a given folder."""
+    models = '_'.join(inps.model)
+    output_folder = os.path.join(inps.folder_path, models)
+    os.makedirs(output_folder, exist_ok=True)
+
+    model_inputs = extract_model_parameters(inps)
+    run_vsm(inps, output_folder, input_sar, model_inputs)
+
+    if inps.show or inps.save:
+        figures = plot_results(inps, output_folder, period)
+        if inps.save:
+            prefix = f"Inversion_result" if period else "VSM_results"
+            for i, fig in enumerate(figures, start=1):
+                fig.savefig(os.path.join(output_folder, f"{prefix}_{i}.png"), dpi=300)
+
+
+def gather_all_inputs(inps, folder_list, regex, period=None):
+    """Collect input_sar across all matching folders."""
+    input_sar = ''
+    for folder in folder_list:
+        match = regex.match(folder)
+        if not match:
+            continue
+
+        input_folder = os.path.join(inps.folder_path, folder)
+        period_folder = os.path.join(input_folder, period) if period else input_folder
+
+        if period and not os.path.exists(period_folder):
+            print(f"Period folder {period_folder} does not exist.")
+            continue
+
+        input_sar += gather_input_sar(inps, period_folder, match.group(0))
+
+    return input_sar
+
+
 def main(iargs=None):
     print("#" * 50)
     print("Starting Inversion Module...")
@@ -197,41 +237,61 @@ def main(iargs=None):
         regex = re.compile(pattern)
         folder_list = [f for f in os.listdir(inps.folder_path) if os.path.isdir(os.path.join(inps.folder_path, f))]
 
+    if inps.period_folder:
+        for period in inps.period_folder:
+            models = '_'.join(inps.model)
+            output_folder = os.path.join(inps.folder_path, models, period)
+            os.makedirs(output_folder, exist_ok=True)
 
-        if inps.period_folder:
-            for period in inps.period_folder:
-                input_sar = ''
-                for folder in folder_list:
-                    match = regex.match(folder)
-                    if match:
-                        input_folder = os.path.join(inps.folder_path, folder)
-                        period_folder = os.path.join(input_folder, period)
-                        output_folder = os.path.join(inps.folder_path, period)
+            input_sar = gather_all_inputs(inps, folder_list, regex=regex, period=period)
+            process_folder(inps, input_sar, period)
+    else:
+        input_sar = gather_all_inputs(inps, folder_list, regex=regex)
 
-                        if not os.path.exists(period_folder):
-                            print(f"Period folder {period_folder} does not exist.")
-                            continue
+        process_folder(inps, input_sar)
+        # if inps.period_folder:
+        #     for period in inps.period_folder:
+        #         input_sar = ''
+        #         for folder in folder_list:
+        #             match = regex.match(folder)
+        #             if match:
+        #                 input_folder = os.path.join(inps.folder_path, folder)
+        #                 period_folder = os.path.join(input_folder, period)
+        #                 output_folder = os.path.join(inps.folder_path, period)
 
-                        os.makedirs(output_folder, exist_ok=True)
-                        input_sar += gather_input_sar(inps, period_folder, match.group(0))
+        #                 if not os.path.exists(period_folder):
+        #                     print(f"Period folder {period_folder} does not exist.")
+        #                     continue
 
-                model_inputs = extract_model_parameters(inps)
-                run_vsm(inps, output_folder, input_sar, model_inputs)
-                if inps.show:
-                    plot_results(inps, output_folder, period)
+        #                 os.makedirs(output_folder, exist_ok=True)
+        #                 input_sar += gather_input_sar(inps, period_folder, match.group(0))
 
-        else:
-            input_sar = ''
-            for folder in folder_list:
-                match = regex.match(folder)
-                if match:
-                    input_folder = os.path.join(inps.folder_path, folder)
-                    input_sar += gather_input_sar(inps, input_folder, match.group(0))
+        #         model_inputs = extract_model_parameters(inps)
+        #         run_vsm(inps, output_folder, input_sar, model_inputs)
 
-            model_inputs = extract_model_parameters(inps)
-            run_vsm(inps, inps.folder_path, input_sar, model_inputs)
-            if inps.show:
-                plot_results(inps, inps.folder_path)
+        #         if inps.show or inps.save:
+        #             figures = plot_results(inps, output_folder, period)
+
+        #             if inps.save:
+        #                 for i, fig in enumerate(figures):
+        #                     fig.savefig(os.path.join(output_folder, f'Inversion_result_{i+1}.png'), dpi=300)
+
+        # else:
+        #     input_sar = ''
+        #     for folder in folder_list:
+        #         match = regex.match(folder)
+        #         if match:
+        #             input_folder = os.path.join(inps.folder_path, folder)
+        #             input_sar += gather_input_sar(inps, input_folder, match.group(0))
+
+        #     model_inputs = extract_model_parameters(inps)
+        #     run_vsm(inps, inps.folder_path, input_sar, model_inputs)
+        #     if inps.show or inps.save:
+        #         figures = plot_results(inps, inps.folder_path)
+
+        #         if inps.save:
+        #             for i, fig in enumerate(figures):
+        #                 fig.savefig(os.path.join(output_folder, f'VSM_results_{i+1}.png'), dpi=300)
 
     if inps.show:
         print("#" * 50)
