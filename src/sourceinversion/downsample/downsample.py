@@ -62,6 +62,10 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
     # Velocity file is in the period folder
     velocity_file = [os.path.join(period_folder, f) for f in os.listdir(period_folder) if 'velocity_msk.h5' in f]
 
+    # If 'velocity_msk.h5' is not found, search for 'velocity.h5'
+    if not velocity_file:
+        velocity_file = [os.path.join(period_folder, f) for f in os.listdir(period_folder) if 'velocity.h5' in f]
+
     # Other files are in the parent folder
     mask_file = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'maskTempCoh.h5' in f]
     geom_file = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'geometryRadar.h5' in f]

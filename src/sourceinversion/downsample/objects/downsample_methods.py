@@ -1,6 +1,5 @@
 import numpy as np
 from kite import Scene
-from mintpy import subset
 from scipy.ndimage import zoom
 from mintpy.utils import readfile
 from sourceinversion.shared.helper_functions import extent2meshgrid, convert_to_utm

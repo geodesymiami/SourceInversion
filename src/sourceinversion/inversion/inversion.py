@@ -8,6 +8,7 @@ import glob
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+from mintpy.utils import readfile
 from sourceinversion.shared.plot import plot_results as plot
 from sourceinversion.shared.csv_functions import results_csv, read_best_values
 from sourceinversion.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DEFS
@@ -129,6 +130,19 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
     )
 
     if not glob.glob(os.path.join(output_folder, 'VSM_synth_*.csv')):
+        print("Inverting with\n")
+        print(
+            """
+                __     __   ______   __       __ 
+                /  |   /  | /      \ /  \     /  |
+                $$ |   $$ |/$$$$$$  |$$  \   /$$ |
+                $$ |   $$ |$$ \__$$/ $$$  \ /$$$ |
+                $$  \ /$$/ $$      \ $$$$  /$$$$ |
+                $$  /$$/   $$$$$$  |$$ $$ $$/$$ |
+                $$ $$/   /  \__$$ |$$ |$$$/ $$ |
+                $$$/    $$    $$/ $$ | $/  $$ |
+                    $/      $$$$$$/  $$/      $$/ \n
+            """)
         VSM.read_VSM_settings(inps.txt_file)
         VSM.iVSM()
 
@@ -138,9 +152,17 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         print("#" * 50)
         print("VSM_synth already exists, skipping inversion.\n")
 
+    sar_dict = {}
+    for i, path in enumerate(input_sar.split()):
+        matching_files = [os.path.join(os.path.dirname(path), f) for f in os.listdir(os.path.dirname(path)) if 'velocity_msk.h5' in f]
+        sar_dict[f"VSM_synth_sar{i+1}.csv"] = matching_files[0] if matching_files else None
+
+    return sar_dict
 
 
-def plot_results(inps, output_folder, period=None):
+
+
+def plot_results(inps, output_folder, period=None, file_dictionary=None):
     if os.path.exists(os.path.join(output_folder, 'VSM_best.csv')):
         sources_center = read_best_values(os.path.join(output_folder, 'VSM_best.csv'))
     else:
@@ -151,7 +173,9 @@ def plot_results(inps, output_folder, period=None):
     for file in os.listdir(output_folder):
         if 'VSM_synth' in file and file.endswith('.csv'):
             east, north, data, synth = results_csv(os.path.join(output_folder, file))
-            figures.append(plot(inps, east, north, data, synth, sources_center, inps.model, period))
+            deformation = readfile.read(file_dictionary[file])[0]
+            fig = plot(inps, east, north, data, synth, sources_center, inps.model, period, deformation)
+            figures.append(fig)
 
     return figures
 
@@ -190,14 +214,14 @@ def gather_input_sar(inps, base_folder, match_str):
 def process_folder(inps, input_sar, period=None):
     """Run inversion and plotting for a given folder."""
     models = '_'.join(inps.model)
-    output_folder = os.path.join(inps.folder_path, models)
+    output_folder = os.path.join(inps.folder_path, period, models) if period else os.path.join(inps.folder_path, models)
     os.makedirs(output_folder, exist_ok=True)
 
     model_inputs = extract_model_parameters(inps)
-    run_vsm(inps, output_folder, input_sar, model_inputs)
+    sar_dict = run_vsm(inps, output_folder, input_sar, model_inputs)
 
     if inps.show or inps.save:
-        figures = plot_results(inps, output_folder, period)
+        figures = plot_results(inps, output_folder, period, file_dictionary=sar_dict)
         if inps.save:
             prefix = f"Inversion_result" if period else "VSM_results"
             for i, fig in enumerate(figures, start=1):
@@ -239,59 +263,11 @@ def main(iargs=None):
 
     if inps.period_folder:
         for period in inps.period_folder:
-            models = '_'.join(inps.model)
-            output_folder = os.path.join(inps.folder_path, models, period)
-            os.makedirs(output_folder, exist_ok=True)
-
             input_sar = gather_all_inputs(inps, folder_list, regex=regex, period=period)
             process_folder(inps, input_sar, period)
     else:
         input_sar = gather_all_inputs(inps, folder_list, regex=regex)
-
         process_folder(inps, input_sar)
-        # if inps.period_folder:
-        #     for period in inps.period_folder:
-        #         input_sar = ''
-        #         for folder in folder_list:
-        #             match = regex.match(folder)
-        #             if match:
-        #                 input_folder = os.path.join(inps.folder_path, folder)
-        #                 period_folder = os.path.join(input_folder, period)
-        #                 output_folder = os.path.join(inps.folder_path, period)
-
-        #                 if not os.path.exists(period_folder):
-        #                     print(f"Period folder {period_folder} does not exist.")
-        #                     continue
-
-        #                 os.makedirs(output_folder, exist_ok=True)
-        #                 input_sar += gather_input_sar(inps, period_folder, match.group(0))
-
-        #         model_inputs = extract_model_parameters(inps)
-        #         run_vsm(inps, output_folder, input_sar, model_inputs)
-
-        #         if inps.show or inps.save:
-        #             figures = plot_results(inps, output_folder, period)
-
-        #             if inps.save:
-        #                 for i, fig in enumerate(figures):
-        #                     fig.savefig(os.path.join(output_folder, f'Inversion_result_{i+1}.png'), dpi=300)
-
-        # else:
-        #     input_sar = ''
-        #     for folder in folder_list:
-        #         match = regex.match(folder)
-        #         if match:
-        #             input_folder = os.path.join(inps.folder_path, folder)
-        #             input_sar += gather_input_sar(inps, input_folder, match.group(0))
-
-        #     model_inputs = extract_model_parameters(inps)
-        #     run_vsm(inps, inps.folder_path, input_sar, model_inputs)
-        #     if inps.show or inps.save:
-        #         figures = plot_results(inps, inps.folder_path)
-
-        #         if inps.save:
-        #             for i, fig in enumerate(figures):
-        #                 fig.savefig(os.path.join(output_folder, f'VSM_results_{i+1}.png'), dpi=300)
 
     if inps.show:
         print("#" * 50)

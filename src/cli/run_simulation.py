@@ -138,7 +138,8 @@ def main(iargs=None):
 
                 input_folder = os.path.join(inps.folder_path, folder)
                 period_folder = os.path.join(input_folder, period) if period else input_folder
-                output_folder = os.path.join(inps.folder_path, period) if period else inps.folder_path
+                models = '_'.join(inps.model)
+                output_folder = os.path.join(inps.folder_path, period, models) if period else os.path.join(inps.folder_path, models)
                 params = os.path.join(output_folder, 'VSM_best.csv')
 
                 if not inps.txt_file:
@@ -149,7 +150,6 @@ def main(iargs=None):
 
                 sim_out_folder = os.path.join(simulation_folder, period) if period else simulation_folder
                 simulation_input = os.path.join(simulation_folder, folder,  period) if period else os.path.join(simulation_folder, folder)
-                # os.makedirs(sim_out_folder, exist_ok=True)  ALREADY CREATED IN inversion
                 os.makedirs(simulation_input, exist_ok=True)
 
                 for f in os.listdir(period_folder):
