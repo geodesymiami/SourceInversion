@@ -2,7 +2,8 @@
 ## Define `SOURCEINVERSION_HOME` folder
 
 ```bash
-export SOURCEINVERSION_HOME=path/to/code/SourceInversion
+cd SourceInversion
+export SOURCEINVERSION_HOME=${PWD}
 ```
 
 Add to pythonpath (we haven't added anything on the environment.bash yet)
