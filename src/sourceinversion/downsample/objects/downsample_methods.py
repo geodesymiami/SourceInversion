@@ -100,14 +100,14 @@ class Downsample:
         self.length = np.sum(mask)
 
         # Convert coordinates to UTM and apply mask
-        x, y = convert_to_utm(longitude=x[mask], latitude=y[mask])
+        x, y = convert_to_utm(longitude=x, latitude=y)
 
         # Assign filtered values to instance variables
-        self.z = z[mask]
+        self.z = z
         self.x = x
         self.y = y
-        self.incident = incident_angle[mask]
-        self.azimuth = azimuth_angle[mask]
+        self.incident = incident_angle
+        self.azimuth = azimuth_angle
 
         self._LOS()
 

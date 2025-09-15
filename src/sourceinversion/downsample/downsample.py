@@ -78,9 +78,9 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
         if inps.show:
             fig, ax = plt.subplots()
             if inps.style == 'scatter':
-                ax.scatter(down.x, down.y, c=down.z, s=1, color=inps.color_map)
+                ax.scatter(down.x, down.y, c=down.z, s=1, cmap=inps.color_map)
             elif inps.style == 'image':
-                ax.imshow(down.imshow, cmap=inps.color_map)
+                ax.imshow(down.imshow, cmap=inps.color_map, extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
 
     elif inps.method == 'quadtree':
         skite(kite_args)

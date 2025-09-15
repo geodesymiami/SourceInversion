@@ -3,15 +3,17 @@
 import os
 import re
 import sys
-from VSM.VSM import VSM
 import glob
+import logging
 import argparse
 import pandas as pd
+from VSM.VSM import VSM
 import matplotlib.pyplot as plt
 from mintpy.utils import readfile
-from sourceinversion.shared.plot import plot_results as plot
+from sourceinversion.shared.plot import InversionPlotter
+# from sourceinversion.shared.plot import plot_results as plot
 from sourceinversion.shared.csv_functions import results_csv, read_best_values
-from sourceinversion.shared.helper_functions import inversion_template, SCRATCHDIR, MODEL_DEFS
+from sourceinversion.shared.helper_functions import inversion_template, get_bounding_box, SCRATCHDIR, MODEL_DEFS
 from sourceinversion.shared.argument_parser import add_mogi_parameters, add_penny_parameters, add_spheroid_parameters, add_okada_parameters, add_sampling_parameters, add_coordinates_parameters
 
 
@@ -38,6 +40,7 @@ def create_parser():
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
     parser.add_argument('--bbox', action='store_true', help="Show bounding box of x and y range on plot.")
     parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
+    parser.add_argument('--fullres', dest='fullres', action='store_true', help="Show full resolution data.")
     parser.add_argument('--save', action='store_true', help="Save the plot as PNG.")
 
     parser = add_mogi_parameters(parser)
@@ -69,6 +72,10 @@ def create_parser():
 
     else:
         inps.period_folder = []
+
+    for attr in ['x_range', 'y_range']:
+        while len(inps.model) > len(getattr(inps, attr)):
+            getattr(inps, attr).append(None)
 
     return inps
 
@@ -117,8 +124,8 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         input_gps=getattr(inps, "input_gps", None),
         shear=inps.shear,
         poisson=inps.nu,
-        x_range=inps.x_range,
-        y_range=inps.y_range,
+        x_range=inps.x,
+        y_range=inps.y,
         z_range=inps.z_range,
         models=model_inputs,
         sampling_id=inps.sampling_id,
@@ -133,15 +140,14 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         print("Inverting with\n")
         print(
             """
-                __     __   ______   __       __ 
-                /  |   /  | /      \ /  \     /  |
-                $$ |   $$ |/$$$$$$  |$$  \   /$$ |
-                $$ |   $$ |$$ \__$$/ $$$  \ /$$$ |
-                $$  \ /$$/ $$      \ $$$$  /$$$$ |
-                $$  /$$/   $$$$$$  |$$ $$ $$/$$ |
-                $$ $$/   /  \__$$ |$$ |$$$/ $$ |
-                $$$/    $$    $$/ $$ | $/  $$ |
-                    $/      $$$$$$/  $$/      $$/ \n
+                 /$$    /$$  /$$$$$$  /$$      /$$
+                | $$   | $$ /$$__  $$| $$$    /$$$
+                | $$   | $$| $$  \__/| $$$$  /$$$$
+                |  $$ / $$/|  $$$$$$ | $$ $$/$$ $$
+                 \  $$ $$/  \____  $$| $$  $$$| $$
+                  \  $$$/   /$$  \ $$| $$\  $ | $$
+                   \  $/   |  $$$$$$/| $$ \/  | $$
+                    \_/     \______/ |__/     |__/
             """)
         VSM.read_VSM_settings(inps.txt_file)
         VSM.iVSM()
@@ -160,8 +166,6 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
     return sar_dict
 
 
-
-
 def plot_results(inps, output_folder, period=None, file_dictionary=None):
     if os.path.exists(os.path.join(output_folder, 'VSM_best.csv')):
         sources_center = read_best_values(os.path.join(output_folder, 'VSM_best.csv'))
@@ -173,8 +177,12 @@ def plot_results(inps, output_folder, period=None, file_dictionary=None):
     for file in os.listdir(output_folder):
         if 'VSM_synth' in file and file.endswith('.csv'):
             east, north, data, synth = results_csv(os.path.join(output_folder, file))
-            deformation = readfile.read(file_dictionary[file])[0]
-            fig = plot(inps, east, north, data, synth, sources_center, inps.model, period, deformation)
+            deformation, metadata = readfile.read(file_dictionary[file])
+            lat, lon = get_bounding_box(metadata)
+
+            plotter = InversionPlotter(inps, east, north, data, synth, deformation, inps.model, sources_center=sources_center, period=period, latitude=lat, longitude=lon, bbox=inps.bbox)
+
+            fig = plotter.plot()
             figures.append(fig)
 
     return figures
@@ -186,28 +194,22 @@ def gather_input_sar(inps, base_folder, match_str):
         if f.endswith('.csv') and match_str in f:
             input_sar += os.path.join(base_folder, f) + ' '
             df = pd.read_csv(os.path.join(base_folder, f))
-            if float('inf') in inps.x_range:
-                inps.x_range = define_range(inps.x_range, df['xx'])
-            else:
-                if len(inps.x_range) == 1:
-                    # Get the min and max values of df['xx']
-                    data_range = define_range([float('inf'), float('-inf')], df['xx'])
-                    range_width = data_range[1] - data_range[0]
-                    inps.x_range = [
-                        inps.x_range[0] - range_width * inps.scaling_box,
-                        inps.x_range[0] + range_width * inps.scaling_box
-                    ]
 
-            if float('inf') in inps.y_range:
-                inps.y_range = define_range(inps.y_range, df['yy'])
-            else:
-                if len(inps.y_range) == 1:
-                    data_range = define_range([float('inf'), float('-inf')], df['yy'])
-                    range_width = data_range[1] - data_range[0]
-                    inps.y_range = [
-                        inps.y_range[0] - range_width * inps.scaling_box,
-                        inps.y_range[0] + range_width * inps.scaling_box
-                    ]
+            x_range = define_range([float('inf'), float('-inf')], df['xx'])
+            range_width = (x_range[1] - x_range[0])/2
+            inps.x = []
+            for x in inps.x_range:
+                inps.x.append(x_range if not x else ([x - (range_width * inps.scaling_box), x + (range_width * inps.scaling_box)]))
+
+            y_range = define_range([float('inf'), float('-inf')], df['yy'])
+            range_length = (y_range[1] - y_range[0])/2
+            inps.y = []
+            for y in inps.y_range:
+                inps.y.append(y_range if not y else ([y - (range_length * inps.scaling_box), y + (range_length * inps.scaling_box)]))
+
+    if input_sar == '':
+        raise FileNotFoundError(f"No matching CSV files found in {base_folder} for pattern {match_str}")
+
     return input_sar
 
 
@@ -249,12 +251,19 @@ def gather_all_inputs(inps, folder_list, regex, period=None):
 
 
 def main(iargs=None):
+    inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
+
+    # Configure logging to write to a log file
+    logging.basicConfig(filename=os.path.join(inps.folder_path, 'log'), level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d')
+
+    # Log the command-line command
+    cmd_command = ' '.join(sys.argv)
+    logging.info(cmd_command)
+
     print("#" * 50)
     print("Starting Inversion Module...")
     print("#" * 50)
     print()
-
-    inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
 
     if inps.satellite:
         pattern = f"({'|'.join([f'{inps.satellite}[AD]T?'])})\\d+"
