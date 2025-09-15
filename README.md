@@ -13,7 +13,7 @@ export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
 
 ## Clone VSM and initialize as a package
 ```bash
-git clone https://github.com/EliTras/VSM.git ${SOURCEINVERSION_HOME}/src/ 
+git clone https://github.com/EliTras/VSM.git ${SOURCEINVERSION_HOME}/src/VSM
 touch ${SOURCEINVERSION_HOME}/src/VSM/__init__.py
 ```
 
