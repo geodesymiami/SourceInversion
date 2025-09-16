@@ -9,7 +9,7 @@ export SOURCEINVERSION_HOME=${PWD}
 Add to pythonpath (we haven't added anything on the environment.bash yet)
 ```bash
 export PATH=${SOURCEINVERSION_HOME}/src/cli:$PATH
-export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
+export PYTHONPATH=${SOURCEINVERSION_HOME}/src:${SOURCEINVERSION_HOME}/src/VSM/VSM:$PYTHONPATH
 ```
 
 ## Clone VSM and initialize as a package
