@@ -25,7 +25,7 @@ def displacement_csv(file, x, y, z, err, lose, losn, losz):
     # Remove rows with any NaN or empty values
     df = df.dropna()
 
-    print("#" * 50)
+    print("-" * 50)
     print(f"Saving {file_name}.\n")
 
     df.to_csv(file_name, index=False)

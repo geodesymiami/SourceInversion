@@ -116,9 +116,9 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
 
 
 def main(iargs=None):
-    print("#" * 50)
+    print("-" * 50)
     print("Starting Decomposition Module...")
-    print("#" * 50)
+    print("-" * 50)
     print()
 
     inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs

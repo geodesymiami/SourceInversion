@@ -152,10 +152,10 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         VSM.read_VSM_settings(inps.txt_file)
         VSM.iVSM()
 
-        print("#" * 50)
+        print("-" * 50)
         print("Inversion completed with VSM.\n")
     else:
-        print("#" * 50)
+        print("-" * 50)
         print("VSM_synth already exists, skipping inversion.\n")
 
     sar_dict = {}
@@ -262,9 +262,9 @@ def main(iargs=None):
     cmd_command = ' '.join(sys.argv)
     logging.info(cmd_command)
 
-    print("#" * 50)
+    print("-" * 50)
     print("Starting Inversion Module...")
-    print("#" * 50)
+    print("-" * 50)
     print()
 
     if inps.satellite:
@@ -281,7 +281,7 @@ def main(iargs=None):
         process_folder(inps, input_sar)
 
     if inps.show:
-        print("#" * 50)
+        print("-" * 50)
         print("Plotting results...\n")
         plt.show()
 

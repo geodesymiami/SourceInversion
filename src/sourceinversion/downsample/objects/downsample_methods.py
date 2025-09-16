@@ -20,7 +20,7 @@ class Downsample:
 
         self._resize()
 
-        print("#" * 50)
+        print("-" * 50)
         print(f"Loading {self.velocity_file}.\n")
 
     def _resize(self):
@@ -79,7 +79,7 @@ class Downsample:
         # Skip value every 'skip' step
         skip = reduction
 
-        print("#" * 50)
+        print("-" * 50)
         print(f"Reducing {self.velocity_file} by a factor of {reduction}.\n")
 
         # Slice and flatten arrays
@@ -115,7 +115,7 @@ class Downsample:
     def quadtree(self, epsilon=0.0029, tile_size_max=0.02, tile_size_min=0.002, nan_allowed=0.9):
         sc = Scene.load(self.kite_file)
 
-        print("#" * 50)
+        print("-" * 50)
         print(f"Reducing {self.kite_file} with Quadtree.\n")
 
         self.qt = sc.quadtree
