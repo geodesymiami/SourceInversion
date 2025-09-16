@@ -20,7 +20,7 @@ MODEL_DEFS = {
     },
     'spheroid': {
         'id': '3',
-        'params': ['strike', 'dip', 'ratio', 'a', 'dP_mu'],
+        'params': ['strike', 'dip', 'ratio', 'semi_axis', 'dp_mu'],
     },
     'moment': {
         'id': '4',
@@ -117,10 +117,10 @@ def convert_to_utm(longitude, latitude):
         tuple: Arrays of UTM Eastings (x) and Northings (y).
     """
     # Calculate the UTM zone based on the longitude
-    utm_zone = int((longitude.mean() + 180) // 6) + 1
+    utm_zone = int((np.nanmean(longitude) + 180) // 6) + 1
 
     # Determine the hemisphere based on latitude
-    hemisphere = 'north' if latitude.mean() >= 0 else 'south'
+    hemisphere = 'north' if np.nanmean(latitude) >= 0 else 'south'
 
     # Determine the EPSG code based on the UTM zone and hemisphere
     epsg_code = f"326{utm_zone:02d}" if hemisphere == 'north' else f"327{utm_zone:02d}"
@@ -134,8 +134,7 @@ def convert_to_utm(longitude, latitude):
     return x, y
 
 
-def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shear=None,poisson=None,x_range=None,y_range=None,z_range=None,models=None,sampling_id='0',weight_sar=0.0,weight_gps=0.0
-):
+def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shear=None,poisson=None,x_range=None,y_range=None,z_range=None,models=None,sampling_id='0',weight_sar=0.0,weight_gps=0.0,p1='1000',p2='300',p3='12'):
     """
     Write VSM inversion template with multiple source models and shared x/y/z ranges.
 
@@ -164,13 +163,12 @@ def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shea
         f'{poisson}',
         str(len(models)),
     ]
-
-    for source_id, info in models.items():
+    for (source_id, info), x, y in zip(models.items(), x_range, y_range):
         lines.append(f'{source_id}')  # model ID
 
         # # Add shared spatial parameters first
-        lines.append(f'{x_range[0]}\t{x_range[1]}')
-        lines.append(f'{y_range[0]}\t{y_range[1]}')
+        lines.append(f'{x[0]}\t{x[1]}')
+        lines.append(f'{y[0]}\t{y[1]}')
         lines.append(f'{z_range[0]}\t{z_range[1]}')
 
         # Add model-specific parameters
@@ -179,11 +177,44 @@ def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shea
             lines.append(f'{val_range[0]}\t{val_range[1]}\t{param_name}')
 
     # Sampling algorithm & params
+    # p1 = '1000'   #p1
+    # p2 = '300'    #p2
+    # p3 = '40'     #p3 or BI steps
     lines.append(str(sampling_id))       # 0 for NA, 1 for BI
-    lines.append('1000 300')             # p1, p2
-    lines.append('12')                   # p3 or BI steps
-    lines.append('5000')                 # burn-in
+    if(sampling_id == '0'):
+        lines.append(f"{p1}\t{p2}")
+        lines.append(f"{p3}")
+    else:
+        lines.append(p1)
+        lines.append(p2)
+
+    lines.append('2000')                 # burn-in
 
     # Write to file
     with open(txt_file, 'w') as f:
         f.write('\n'.join(lines))
+
+
+def get_bounding_box(metadata):
+    """
+    Calculate the bounding box coordinates based on the given metadata.
+
+    Args:
+        metadata (dict): A dictionary containing the metadata information.
+
+    Returns:
+        tuple: A tuple containing two lists, the first list represents the latitude range and the second list represents the longitude range.
+    """
+    lat_out = []
+    lon_out = []
+
+    length = int(metadata['LENGTH'])
+    width = int(metadata['WIDTH'])
+
+    for y_i, x_i in zip([0, length], [0, width]):
+        lat_i = None if y_i is None else (y_i + 0.5) * float(metadata['Y_STEP']) + float(metadata['Y_FIRST'])
+        lon_i = None if x_i is None else (x_i + 0.5) * float(metadata['X_STEP']) + float(metadata['X_FIRST'])
+        lat_out.append(lat_i)
+        lon_out.append(lon_i)
+
+    return [min(lat_out), max(lat_out)], [min(lon_out), max(lon_out)]

@@ -16,6 +16,7 @@ export PYTHONPATH=${SOURCEINVERSION_HOME}/src:$PYTHONPATH
 ```bash
 git clone https://github.com/EliTras/VSM.git ${SOURCEINVERSION_HOME}/src/VSM
 touch ${SOURCEINVERSION_HOME}/src/VSM/__init__.py
+conda install -c conda-forge --file ${SOURCEINVERSION_HOME}/src/VSM/VSM/requirements.txt 
 ```
 
 ## Suggested

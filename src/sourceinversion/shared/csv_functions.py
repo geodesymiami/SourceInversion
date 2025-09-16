@@ -1,4 +1,5 @@
 import os
+import re
 import csv
 import pandas as pd
 
@@ -20,6 +21,9 @@ def displacement_csv(file, x, y, z, err, lose, losn, losz):
         'ly': losn,
         'lz': losz,
     })
+
+    # Remove rows with any NaN or empty values
+    df = df.dropna()
 
     print("#" * 50)
     print(f"Saving {file_name}.\n")
@@ -45,3 +49,21 @@ def read_csv(file):
         # Read the first (and only) row
         row = next(reader)
     return row
+
+def read_best_values(file):
+    df = pd.read_csv(file)
+    row = df.iloc[0]  # best-fit row
+
+    sources = {}
+
+    for col in df.columns:
+        # Match x-columns: "xcen" or "xtlc_<n>"
+        m = re.match(r"(x(?:cen|tlc))(?:_(\d+))?", col)
+        if m:
+            idx = m.group(2) if m.group(2) else "1"  # default source = 1
+            x_key = col
+            y_key = col.replace("x", "y", 1)  # swap only first x→y
+            if y_key in row:
+                sources[f"source{idx}"] = [row[x_key], row[y_key]]
+
+    return list(sources.values())
