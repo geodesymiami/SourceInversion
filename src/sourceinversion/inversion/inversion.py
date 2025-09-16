@@ -7,7 +7,7 @@ import glob
 import logging
 import argparse
 import pandas as pd
-from VSM import VSM
+from VSM.VSM import VSM
 import matplotlib.pyplot as plt
 from mintpy.utils import readfile
 from sourceinversion.shared.plot import InversionPlotter
