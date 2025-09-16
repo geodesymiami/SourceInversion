@@ -152,10 +152,10 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         VSM.read_VSM_settings(inps.txt_file)
         VSM.iVSM()
 
-        print("#" * 50)
+        print("-" * 50)
         print("Inversion completed with VSM.\n")
     else:
-        print("#" * 50)
+        print("-" * 50)
         print("VSM_synth already exists, skipping inversion.\n")
 
     sar_dict = {}
@@ -227,7 +227,9 @@ def process_folder(inps, input_sar, period=None):
         if inps.save:
             prefix = f"Inversion_result" if period else "VSM_results"
             for i, fig in enumerate(figures, start=1):
-                fig.savefig(os.path.join(output_folder, f"{prefix}_{i}.png"), dpi=300)
+                save_path = os.path.join(output_folder, f"{prefix}_{i}.png")
+                fig.savefig(save_path, dpi=300)
+                print(f"Figure saved as {save_path}\n")
 
 
 def gather_all_inputs(inps, folder_list, regex, period=None):
@@ -260,9 +262,9 @@ def main(iargs=None):
     cmd_command = ' '.join(sys.argv)
     logging.info(cmd_command)
 
-    print("#" * 50)
+    print("-" * 50)
     print("Starting Inversion Module...")
-    print("#" * 50)
+    print("-" * 50)
     print()
 
     if inps.satellite:
@@ -279,7 +281,7 @@ def main(iargs=None):
         process_folder(inps, input_sar)
 
     if inps.show:
-        print("#" * 50)
+        print("-" * 50)
         print("Plotting results...\n")
         plt.show()
 

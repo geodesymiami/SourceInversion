@@ -122,24 +122,24 @@ def compare(sim_out_folder):
     sim = pd.read_csv(os.path.join(sim_out_folder, 'VSM_best.csv'))
     inf = pd.read_csv(os.path.join(sim_out_folder.replace('simulation', ''), 'VSM_best.csv'))
 
-    print("#" * 50)
+    print("-" * 50)
     print("Inverted simulation results:")
     for key in sim.keys():
         print(f"{key}: {sim[key].values}")
-    print("#" * 50)
+    print("-" * 50)
     print("Inverted Observed results:")
     for key in inf.keys():
         print(f"{key}: {inf[key].values}")
-    print("#" * 50)
+    print("-" * 50)
     print("Difference:")
     for s,i in zip(sim.keys(), inf.keys()):
         print(f"{s}: {sim[s].values - inf[i].values}")
 
 def main(iargs=None):
 
-    print("#" * 50)
+    print("-" * 50)
     print("Starting Simulation Module...")
-    print("#" * 50)
+    print("-" * 50)
     print()
 
     inps = create_parser()
