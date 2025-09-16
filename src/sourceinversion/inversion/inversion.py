@@ -227,7 +227,9 @@ def process_folder(inps, input_sar, period=None):
         if inps.save:
             prefix = f"Inversion_result" if period else "VSM_results"
             for i, fig in enumerate(figures, start=1):
-                fig.savefig(os.path.join(output_folder, f"{prefix}_{i}.png"), dpi=300)
+                save_path = os.path.join(output_folder, f"{prefix}_{i}.png")
+                fig.savefig(save_path, dpi=300)
+                print(f"Figure saved as {save_path}\n")
 
 
 def gather_all_inputs(inps, folder_list, regex, period=None):
