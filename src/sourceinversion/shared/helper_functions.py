@@ -163,13 +163,13 @@ def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shea
         f'{poisson}',
         str(len(models)),
     ]
-    for (source_id, info), x, y in zip(models.items(), x_range, y_range):
+    for (source_id, info), x, y, z in zip(models.items(), x_range, y_range, z_range):
         lines.append(f'{source_id}')  # model ID
 
         # # Add shared spatial parameters first
         lines.append(f'{x[0]}\t{x[1]}')
         lines.append(f'{y[0]}\t{y[1]}')
-        lines.append(f'{z_range[0]}\t{z_range[1]}')
+        lines.append(f'{z[0]}\t{z[1]}')
 
         # Add model-specific parameters
         param_names = MODEL_DEFS[info['name']]['params']

@@ -50,6 +50,7 @@ def add_coordinates_parameters(parser):
     coords = parser.add_argument_group('Coordinates parameters')
     coords.add_argument('--x-range', type=float, nargs='*', default=[None], help="X range (provide one or two values).")
     coords.add_argument('--y-range', type=float, nargs='*', default=[None], help="Y range (provide one or two values).")
-    coords.add_argument('--z-range', type=float, nargs=2, default=(0, 5000), help="Z range (default: %(default)s).")
+    coords.add_argument('--z-range', type=float, nargs='*', default=[None], help="Z range (provide one or two values).")
+    # coords.add_argument('--z-range', type=float, nargs=2, default=(0, 5000), help="Z range (default: %(default)s).")
     coords.add_argument('--scaling-box', type=float, default=0.15, help="Scaling factor for search box - x and y range - (default: %(default)s).")
     return parser
