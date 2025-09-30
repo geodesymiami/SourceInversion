@@ -16,15 +16,15 @@ MODEL_DEFS = {
     },
     'penny': {
         'id': '2',
-        'params': ['radius', 'dP_mu'],
+        'params': ['radius', 'dp_mu'],
     },
     'spheroid': {
         'id': '3',
-        'params': ['strike', 'dip', 'ratio', 'semi_axis', 'dp_mu'],
+        'params': ['semi_axis', 'ratio', 'dp_mu', 'strike', 'dip'],
     },
     'moment': {
         'id': '4',
-        'params': ['Mxx', 'Myy', 'Mzz', 'Mxy', 'Mxz', 'Myz'],
+        'params': ['Mxx', 'Myy', 'Mzz', 'Mxy', 'Myz', 'Mxz'],
     },
     'okada': {
         'id': '5 R',
