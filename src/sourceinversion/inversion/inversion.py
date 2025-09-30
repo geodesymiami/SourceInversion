@@ -126,7 +126,7 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         poisson=inps.nu,
         x_range=inps.x,
         y_range=inps.y,
-        z_range=inps.z_range,
+        z_range=inps.z,
         models=model_inputs,
         sampling_id=inps.sampling_id,
         weight_sar=inps.weight_sar,
@@ -195,17 +195,25 @@ def gather_input_sar(inps, base_folder, match_str):
             input_sar += os.path.join(base_folder, f) + ' '
             df = pd.read_csv(os.path.join(base_folder, f))
 
-            x_range = define_range([float('inf'), float('-inf')], df['xx'])
-            range_width = (x_range[1] - x_range[0])/2
-            inps.x = []
-            for x in inps.x_range:
-                inps.x.append(x_range if not x else ([x - (range_width * inps.scaling_box), x + (range_width * inps.scaling_box)]))
+            def get_range(inps, values, coordinate):
+                range = define_range([float('inf'), float('-inf')], values)
+                range_width = (range[1] - range[0])/2
+                array = []
+                for i in coordinate:
+                    array.append(range if not i else ([i - (range_width * inps.scaling_box), i + (range_width * inps.scaling_box)]))
 
-            y_range = define_range([float('inf'), float('-inf')], df['yy'])
-            range_length = (y_range[1] - y_range[0])/2
-            inps.y = []
-            for y in inps.y_range:
-                inps.y.append(y_range if not y else ([y - (range_length * inps.scaling_box), y + (range_length * inps.scaling_box)]))
+                return array
+
+            inps.x = get_range(inps, df['xx'], inps.x_range)
+            inps.y = get_range(inps, df['yy'], inps.y_range)
+            inps.z = []
+
+            for z in inps.z_range:
+                inps.z.append([z - 2000, z + 2000] if z else [1000, 10000])
+
+            if len(inps.z) < len(inps.x):
+                for i in range(len(inps.x) - len(inps.z)):
+                    inps.z.append([1000, 10000])
 
     if input_sar == '':
         raise FileNotFoundError(f"No matching CSV files found in {base_folder} for pattern {match_str}")
