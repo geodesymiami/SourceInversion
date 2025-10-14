@@ -8,7 +8,7 @@ def add_mogi_parameters(parser):
 
 def add_penny_parameters(parser):
     penny = parser.add_argument_group('Penny parameters')
-    penny.add_argument('--penny-radius', type=float, nargs=2, default=[0, 1000], help="Penny radius range (default: %(default)s).")
+    penny.add_argument('--penny-radius', type=float, nargs=2, default=[100, 1000], help="Penny radius range (default: %(default)s).")
     penny.add_argument('--penny-dp_mu', type=float, nargs=2, default=[0.0001, 0.01], help="Penny dp/mu range (default: %(default)s).")
     return parser
 
