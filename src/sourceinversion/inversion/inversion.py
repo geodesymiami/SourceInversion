@@ -73,7 +73,7 @@ def create_parser():
     else:
         inps.period_folder = []
 
-    for attr in ['x_range', 'y_range']:
+    for attr in ['x_range', 'y_range', 'z_range']:
         while len(inps.model) > len(getattr(inps, attr)):
             getattr(inps, attr).append(None)
 
@@ -81,7 +81,7 @@ def create_parser():
 
 
 def extract_model_parameters(inps):
-    model_dict = {}
+    model_dict = []
 
     for model in inps.model:
         model = model.lower()
@@ -98,10 +98,14 @@ def extract_model_parameters(inps):
                 raise ValueError(f'Missing parameter --{model}-{param}')
             param_values.append(val)
 
-        model_dict[model_id] = {
+        # Initialize model_dict as a list
+
+        # Add a new group with "name" and "params"
+        model_dict.append({
+            "id": model_id,
             'name': model,
             'params': param_values
-        }
+        })
 
     return model_dict
 
@@ -209,7 +213,7 @@ def gather_input_sar(inps, base_folder, match_str):
             inps.z = []
 
             for z in inps.z_range:
-                inps.z.append([z - 2000, z + 2000] if z else [1000, 10000])
+                inps.z.append([z - (1000 * inps.scaling_box), z + (1000 * inps.scaling_box)] if z else [2000, 9000])
 
             if len(inps.z) < len(inps.x):
                 for i in range(len(inps.x) - len(inps.z)):

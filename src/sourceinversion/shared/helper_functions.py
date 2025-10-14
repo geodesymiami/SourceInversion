@@ -161,10 +161,12 @@ def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shea
         '0.0',
         f'{shear}',
         f'{poisson}',
+        # TODO CHANGE
         str(len(models)),
     ]
-    for (source_id, info), x, y, z in zip(models.items(), x_range, y_range, z_range):
-        lines.append(f'{source_id}')  # model ID
+
+    for m, x, y, z in zip(models, x_range, y_range, z_range):
+        lines.append(f"{m['id']}")  # model ID
 
         # # Add shared spatial parameters first
         lines.append(f'{x[0]}\t{x[1]}')
@@ -172,14 +174,10 @@ def inversion_template(txt_file,output_folder,input_sar=None,input_gps=None,shea
         lines.append(f'{z[0]}\t{z[1]}')
 
         # Add model-specific parameters
-        param_names = MODEL_DEFS[info['name']]['params']
-        for val_range, param_name in zip(info['params'], param_names):
+        param_names = MODEL_DEFS[m['name']]['params']
+        for val_range, param_name in zip(m['params'], param_names):
             lines.append(f'{val_range[0]}\t{val_range[1]}\t{param_name}')
 
-    # Sampling algorithm & params
-    # p1 = '1000'   #p1
-    # p2 = '300'    #p2
-    # p3 = '40'     #p3 or BI steps
     lines.append(str(sampling_id))       # 0 for NA, 1 for BI
     if(sampling_id == '0'):
         lines.append(f"{p1}\t{p2}")

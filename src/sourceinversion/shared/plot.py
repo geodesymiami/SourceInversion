@@ -47,7 +47,8 @@ class InversionPlotter:
 
     def plot(self):
         residuals = self.data - self.synth
-        color_min, color_max = -max(self.data), max(self.data)
+        high_val = max(np.abs(self.data))
+        color_min, color_max = -high_val, high_val
 
         # choose layout dynamically
         if self.inps.fullres and self.deformation is not None:
