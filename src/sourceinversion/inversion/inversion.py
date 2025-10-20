@@ -172,11 +172,13 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
 
 def plot_results(inps, output_folder, period=None, file_dictionary=None):
     if os.path.exists(os.path.join(output_folder, 'VSM_best.csv')):
-        sources_center = read_best_values(os.path.join(output_folder, 'VSM_best.csv'))
+        sources = read_best_values(os.path.join(output_folder, 'VSM_best.csv'))
+    elif os.path.exists(os.path.join(output_folder, 'VSM_mean.csv')):
+        sources = read_best_values(os.path.join(output_folder, 'VSM_mean.csv'))
     else:
         # raise FileNotFoundError(f"VSM_best.csv not found in {output_folder}")
         print(f"VSM_best.csv not found in {output_folder}")
-        sources_center = None
+        sources = None
     figures = []
     for file in os.listdir(output_folder):
         if 'VSM_synth' in file and file.endswith('.csv'):
@@ -184,7 +186,7 @@ def plot_results(inps, output_folder, period=None, file_dictionary=None):
             deformation, metadata = readfile.read(file_dictionary[file])
             lat, lon = get_bounding_box(metadata)
 
-            plotter = InversionPlotter(inps, east, north, data, synth, deformation, inps.model, sources_center=sources_center, period=period, latitude=lat, longitude=lon, bbox=inps.bbox)
+            plotter = InversionPlotter(inps, east, north, data, synth, deformation, inps.model, sources=sources, period=period, latitude=lat, longitude=lon, bbox=inps.bbox)
 
             fig = plotter.plot()
             figures.append(fig)

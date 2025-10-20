@@ -6,7 +6,7 @@ from matplotlib.patches import Rectangle
 from scipy.interpolate import griddata
 from sourceinversion.shared.helper_functions import convert_to_utm
 
-def create_panel(ax, x, y, values, title, cmap, vmin, vmax, size=15, sources_center=None):
+def create_panel(ax, x, y, values, title, cmap, vmin, vmax, size=15, sources=None):
     """Draw a scatter panel with optional sources overlay."""
     img = ax.scatter(x, y, size, values, cmap=cmap, vmin=vmin, vmax=vmax)
     cbar = plt.colorbar(img, orientation='horizontal', ax=ax)
@@ -16,21 +16,34 @@ def create_panel(ax, x, y, values, title, cmap, vmin, vmax, size=15, sources_cen
     ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
     ax.set_title(title, fontsize=16, pad=10)
 
-    if sources_center:
-        xs, ys = zip(*sources_center)
-        ax.scatter(xs, ys, s=15, c=xs, cmap="Set3", edgecolors="black", linewidth=0.5, marker="8")
+    if sources:
+        source_type = {
+            "mogi": {"class": Mogi, "attributes": ["xcen", "ycen"]},
+            "spheroid": {"class": Spheroid, "attributes": ["xcen", "ycen", "s_axis_max", "ratio", "strike", "dip"]},
+            "penny": {"class": Penny,  "attributes": ["xcen", "ycen", "radius"]}
+        }
+        for s in sources:
+            s_keys = set(sources[s].keys())
+            matched_class = None
+
+            for key, value in source_type.items():
+                if set(value["attributes"]) == s_keys:
+                    model = value["class"]
+                    model(ax, **sources[s])
+                    # model(ax ,**value["attributes"])
+
     return ax
 
 
 class InversionPlotter:
-    def __init__(self, inps, east, north, data, synth, deformation, model, sources_center=None, period=None, latitude=None, longitude=None, bbox=None):
+    def __init__(self, inps, east, north, data, synth, deformation, model, sources=None, period=None, latitude=None, longitude=None, bbox=None):
         self.east = east
         self.north = north
         self.data = data
         self.synth = synth
         self.deformation = deformation
         self.model = model
-        self.sources_center = sources_center
+        self.sources = sources
         self.period = period
         self.latitude = latitude
         self.longitude = longitude
@@ -47,7 +60,7 @@ class InversionPlotter:
 
     def plot(self):
         residuals = self.data - self.synth
-        high_val = max(np.abs(self.data))
+        high_val = max(np.abs(self.data)) * 1.1
         color_min, color_max = -high_val, high_val
 
         # choose layout dynamically
@@ -63,12 +76,12 @@ class InversionPlotter:
         fig.suptitle(f"Model: {', '.join(map(str, self.model))}"+ (f", Period: {self.period.replace('_', ' ')}" if self.period else ""),fontsize=10,)
 
         # top row
-        create_panel(top_axes[0], self.east, self.north, self.data, "Data", "jet", color_min, color_max, sources_center=self.sources_center)
+        create_panel(top_axes[0], self.east, self.north, self.data, "Data", "jet", color_min, color_max, sources=self.sources)
         self._plot_bbox(top_axes[0])
 
-        create_panel(top_axes[1], self.east, self.north, self.synth, "Model", "jet", color_min, color_max, sources_center=self.sources_center)
+        create_panel(top_axes[1], self.east, self.north, self.synth, "Model", "jet", color_min, color_max, sources=self.sources)
 
-        create_panel(top_axes[2], self.east, self.north, residuals, "Residual", "bwr", color_min/5, color_max/5, sources_center=self.sources_center)
+        create_panel(top_axes[2], self.east, self.north, residuals, "Residual", "bwr", color_min/4, color_max/4, sources=self.sources)
 
         # optional deformation row
         if bottom_axes is not None:
@@ -77,6 +90,7 @@ class InversionPlotter:
         return fig
 
     def _plot_deformation(self, axes, color_min, color_max):
+        #Interpolated result
         xx, yy = convert_to_utm(longitude=self.longitude, latitude=self.latitude)
         x = np.linspace(np.min(xx), np.max(xx), self.deformation.shape[1])
         y = np.linspace(np.max(yy), np.min(yy), self.deformation.shape[0])
@@ -86,105 +100,76 @@ class InversionPlotter:
         z_flat = self.deformation.flatten()
         x_flat, y_flat = grid_x.flatten(), grid_y.flatten()
 
-        axes[0].scatter(x_flat, y_flat, c=z_flat, cmap="jet", vmin=color_min, vmax=color_max, s=1)
-
         synth_interp = griddata((self.east, self.north), self.synth, (grid_x, grid_y), method="linear")
         synth_masked = synth_interp[valid_mask]
 
+        diff = z_flat - synth_interp.flatten()
+
+        axes[0].scatter(x_flat, y_flat, c=z_flat, cmap="jet", vmin=color_min, vmax=color_max, s=1)
+
         axes[1].scatter(grid_x[valid_mask], grid_y[valid_mask], c=synth_masked, cmap="jet", vmin=color_min, vmax=color_max, s=1)
 
-        diff = z_flat - synth_interp.flatten()
         axes[2].scatter(x_flat, y_flat, c=diff, cmap="bwr", vmin=color_min/5, vmax=color_max/5, s=1)
 
-# def plot_results(inps, east, north, data, synth, sources_center, model, period=None, deformation=None, latitude=None, longitude=None):
-#     """
-#     Plot the results of the inversion.
-#     """
-#     def create_panel(ax, x, y, values, title, cmap, vmin, vmax, size=15, sources_center=None):
-#         img = ax.scatter(x, y, size, values, cmap=cmap, vmin=vmin, vmax=vmax)
-#         cbar = plt.colorbar(img, orientation='horizontal', ax=ax)
-#         cbar.set_ticks([vmin, (vmin + vmax) / 2, vmax]) 
-#         cbar.set_label('LOS (m)')
-#         ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
-#         ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-#         ax.set_title(title, fontsize=16, pad=10)
-#         # Plot sources if available
-#         if sources_center:
-#             x_values = [sublist[0] for sublist in sources_center]
-#             y_values = [sublist[1] for sublist in sources_center]
-#             ax.scatter(x_values, y_values, s=15, c=x_values, cmap='Set3', edgecolors='black', linewidth=0.5, marker='8')
 
-#     residuals = data - synth
-#     fig = plt.figure(figsize=(15, 10))
+class Mogi():
+    def __init__(self, ax, xcen, ycen):
+        self.x = xcen
+        self.y = ycen
+        self._plot_source(ax)
 
-#     fig.suptitle(f"Model: {', '.join(str(m) for m in model)}" + (f", Period: {period.replace('_', ' ')}" if period else ""), fontsize=10)
+    def _plot_source(self, ax):
+        ax.scatter(self.x, self.y, s=15, color="black", linewidth=2, marker="x")
 
-#     # Calculate color limits based on the data panel
-#     color_min = -max(data)
-#     color_max = max(data)
 
-#     # Panel Data
-#     ax = plt.subplot(231)
-#     create_panel(ax, east, north, data, 'Data', 'jet', color_min, color_max, sources_center=sources_center)
+class Spheroid():
+    def __init__(self, ax, xcen, ycen, s_axis_max, ratio, strike, dip):
+        self.x = xcen
+        self.y = ycen
+        self.s_axis = s_axis_max
+        self.ratio = ratio
+        self.strike = strike
+        self.dip = dip
+        self._plot_source(ax)
 
-#     if inps.bbox:
-#         for x, y in zip(inps.x, inps.y):
-#             x_min, x_max = x
-#             y_min, y_max = y
-#             rect = Rectangle((x_min, y_min), (x_max-x_min), (y_max-y_min), linewidth=2, edgecolor='black', facecolor='none', alpha=0.3)
-#             ax.add_patch(rect)
+    def _plot_source(self, ax):
+        # Calculate semi-minor axis
+        s_minor = self.s_axis * self.ratio
 
-#     # Panel Model
-#     ax1 = plt.subplot(232)
-#     create_panel(ax1, east, north, synth, 'Model', 'jet', color_min, color_max, sources_center=sources_center)
+        # Convert angles to radians
+        strike_rad = np.radians(self.strike - 90)
+        dip_rad = np.radians(self.dip)
 
-#     # Panel Residuals
-#     ax2 = plt.subplot(233)
-#     create_panel(ax2, east, north, residuals, 'Residual', 'bwr', color_min/5, color_max/5, sources_center=sources_center)
+        # Adjust the semi-major axis length for the dip projection
+        s_axis_projected = self.s_axis * np.sin(dip_rad)
 
-#     ########################### FULL RESOLUTION ###########################
-#     # Create a grid matching the resolution of deformation
-#     xx, yy = convert_to_utm(longitude=longitude, latitude=latitude)
-#     x = np.linspace(np.min(xx), np.max(xx), deformation.shape[1])
-#     y = np.linspace(np.max(yy), np.min(yy), deformation.shape[0])
-#     grid_x, grid_y = np.meshgrid(x, y)
+        # Calculate endpoints of the major axis (with dip projection)
+        dx_major = s_axis_projected * np.cos(strike_rad)
+        dy_major = s_axis_projected * np.sin(strike_rad)
+        x_major = [self.x - dx_major, self.x + dx_major]
+        y_major = [self.y - dy_major, self.y + dy_major]
 
-#     # Flatten the grid and deformation data
-#     x_flat = grid_x.flatten()
-#     y_flat = grid_y.flatten()
-#     z_flat = deformation.flatten()
+        # Calculate endpoints of the minor axis (without dip projection)
+        dx_minor = s_minor * np.sin(strike_rad)
+        dy_minor = s_minor * -np.cos(strike_rad)
+        x_minor = [self.x - dx_minor, self.x + dx_minor]
+        y_minor = [self.y - dy_minor, self.y + dy_minor]
 
-#     # Plot using scatter
-#     ax3 = plt.subplot(234)
-#     ax3.scatter(x_flat, y_flat, c=z_flat, cmap='jet', vmin=color_min, vmax=color_max, s=1)
-#     ax3.set_xlim(np.min(east), np.max(east))
-#     ax3.set_ylim(np.min(north), np.max(north))
+        ax.plot(x_major, y_major, 'r-', label='Major Axis')  # Major axis in red
+        ax.plot(x_minor, y_minor, 'b-', label='Minor Axis')  # Minor axis in blue
+        ax.set_aspect('equal', adjustable='datalim')
 
-#     # Ensure valid_mask matches the shape of deformation
-#     valid_mask = ~np.isnan(deformation)
 
-#     # Flatten and mask grid_x, grid_y, and deformation
-#     x_flat_mskd = grid_x[valid_mask]
-#     y_flat_mskd = grid_y[valid_mask]
+class Penny():
+    def __init__(self, ax, xcen, ycen, radius):
+        self.x = xcen
+        self.y = ycen
+        self.radius = radius
+        self._plot_source(ax)
 
-#     # Interpolate synth data to match the deformation grid
-#     synth_interpolated = griddata(points=(east, north), values=synth, xi=(grid_x, grid_y), method='linear')
-
-#     # Apply the same mask to synth_interpolated
-#     synth_interpolated_masked = synth_interpolated[valid_mask]
-
-#     # Plot using scatter
-#     ax4 = plt.subplot(235)
-#     ax4.scatter(x_flat_mskd, y_flat_mskd, c=synth_interpolated_masked, cmap='jet', vmin=color_min, vmax=color_max, s=1)
-
-#     # Compute the difference
-#     difference = (z_flat - synth_interpolated.flatten())
-
-#     # Plot the scatter plot
-#     ax5 = plt.subplot(236)
-#     ax5.scatter(x_flat, y_flat, c=difference, cmap='bwr', vmin=color_min/5, vmax=color_max/5, s=1)
-
-#     ax.tick_params(axis='both', which='minor', direction='out', length=5, width=2, grid_color='b', grid_alpha=0.5)
-#     ###########################################################################
-
-#     return fig
+    def _plot_source(self, ax):
+        # Create a circle using matplotlib's Circle patch
+        circle = plt.Circle((self.x, self.y), self.radius, color='black', fill=False, label='Penny')
+        # Add the circle to the axes
+        ax.add_patch(circle)
+        ax.set_aspect('equal', adjustable='datalim')
