@@ -20,17 +20,16 @@ def create_panel(ax, x, y, values, title, cmap, vmin, vmax, size=15, sources=Non
         source_type = {
             "mogi": {"class": Mogi, "attributes": ["xcen", "ycen"]},
             "spheroid": {"class": Spheroid, "attributes": ["xcen", "ycen", "s_axis_max", "ratio", "strike", "dip"]},
-            "penny": {"class": Penny,  "attributes": ["xcen", "ycen", "radius"]}
+            "penny": {"class": Penny,  "attributes": ["xcen", "ycen", "radius"]},
+            "okada": {"class": Okada,  "attributes": ["ytlc", "xtlc", "length", "width", "strike", "dip"]},
         }
         for s in sources:
             s_keys = set(sources[s].keys())
-            matched_class = None
 
             for key, value in source_type.items():
                 if set(value["attributes"]) == s_keys:
                     model = value["class"]
                     model(ax, **sources[s])
-                    # model(ax ,**value["attributes"])
 
     return ax
 
@@ -168,8 +167,32 @@ class Penny():
         self._plot_source(ax)
 
     def _plot_source(self, ax):
-        # Create a circle using matplotlib's Circle patch
-        circle = plt.Circle((self.x, self.y), self.radius, color='black', fill=False, label='Penny')
-        # Add the circle to the axes
+        circle = plt.Circle((self.x, self.y), self.radius, edgecolor='black', color="#7cc0ff", fill=True, alpha=0.7, label='Penny')
         ax.add_patch(circle)
+
+
+class Okada:
+    def __init__(self, ax, xtlc, ytlc, length, width, strike, dip):
+        self.xtlc = xtlc
+        self.ytlc = ytlc
+        self.length = length
+        self.width = width
+        self.strike = strike
+        self.dip = dip
+        self._plot_source(ax)
+
+    def _plot_source(self, ax):
+        dip_radians = np.radians(self.dip)
+        projected_width = self.width * np.cos(dip_radians)
+
+        rectangle = Rectangle(
+            (self.xtlc, self.ytlc),         # Bottom-left corner
+            self.length,                    # Length of the rectangle
+            projected_width,                     # Width of the rectangle
+            angle=self.strike - 90,         # Rotation angle (strike)
+            edgecolor='black',              # Edge color
+            facecolor='none',               # Transparent fill
+            lw=1                           # Line width
+        )
+        ax.add_patch(rectangle)
         ax.set_aspect('equal', adjustable='datalim')

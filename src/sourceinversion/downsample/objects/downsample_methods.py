@@ -11,7 +11,6 @@ class Downsample:
         self.geometry_file = geometry_file
         self.velocity, self.metadata = readfile.read(self.velocity_file)
 
-
         self.incident_angle = readfile.read(self.geometry_file, datasetName='/incidenceAngle')[0]
         self.azimuth_angle = readfile.read(self.geometry_file, datasetName='/azimuthAngle')[0]
         self.latitude = readfile.read(self.geometry_file, datasetName='latitude')[0]
