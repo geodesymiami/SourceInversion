@@ -190,9 +190,10 @@ class Okada:
             self.length,                    # Length of the rectangle
             projected_width,                     # Width of the rectangle
             angle=self.strike - 90,         # Rotation angle (strike)
-            edgecolor='black',              # Edge color
-            facecolor='none',               # Transparent fill
-            lw=1                           # Line width
+            # edgecolor='black',              # Edge color
+            facecolor='black',               # Transparent fill
+            lw=1,                           # Line width
+            alpha=0.5
         )
         ax.add_patch(rectangle)
         ax.set_aspect('equal', adjustable='datalim')

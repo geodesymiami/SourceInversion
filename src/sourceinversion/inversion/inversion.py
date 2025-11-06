@@ -32,7 +32,7 @@ def create_parser():
     parser.add_argument('--folder', type=str, required=True, help="Path to the folder.")
     parser.add_argument('--satellite', type=str, default='Sen', choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
-    parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: 0.5).")
+    parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: %(default)s).")
     parser.add_argument('--poisson', type=float, dest='nu', default=0.25, help="Poisson ratio (default: %(default)s).")
     parser.add_argument('--model', type=str, choices=['mogi', 'penny', 'spheroid', 'moment', 'okada'], nargs='+', help='Source model(s) to include.')
     parser.add_argument('--weight-sar', type=float, default=1.0, help="Weight for SAR data (default: 1.0).")

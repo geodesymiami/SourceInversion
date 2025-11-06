@@ -2,7 +2,7 @@ import numpy as np
 from kite import Scene
 from scipy.ndimage import zoom
 from mintpy.utils import readfile
-from sourceinversion.shared.helper_functions import extent2meshgrid, convert_to_utm
+from sourceinversion.shared.helper_functions import convert_to_utm, resize_to_match
 
 
 class Downsample:
@@ -17,12 +17,34 @@ class Downsample:
         self.longitude = readfile.read(self.geometry_file, datasetName='longitude')[0]
         self.kite_file = kite_file
 
-        self._resize()
+        self.incident_angle = resize_to_match(self.incident_angle, self.velocity, "incident_angle")
+        self.azimuth_angle = resize_to_match(self.azimuth_angle, self.velocity, "azimuth_angle")
+        self.latitude = resize_to_match(self.latitude, self.velocity, "latitude")
+        self.longitude = resize_to_match(self.longitude, self.velocity, "longitude")
+
+        # self._resize()
 
         print("-" * 50)
         print(f"Loading {self.velocity_file}.\n")
 
+
+    # TODO deprecated with _resize_to_match
     def _resize(self):
+        """
+        Resizes the incident angle, azimuth angle, latitude, and longitude arrays 
+        to match the shape of the velocity array using linear interpolation.
+
+        Raises:
+            ValueError: If the shape of any of the arrays (incident_angle, 
+            azimuth_angle, latitude, longitude) is invalid (i.e., contains 
+            non-positive dimensions).
+
+        The method checks each of the angle and coordinate arrays against the 
+        velocity array's shape and applies a zoom operation if their shapes 
+        do not match. The zoom factors are calculated based on the ratio of 
+        the dimensions of the velocity array to the respective array.
+        """
+
         if self.incident_angle.shape != self.velocity.shape:
             if all(dim > 0 for dim in self.incident_angle.shape):
                 zoom_factors = (
