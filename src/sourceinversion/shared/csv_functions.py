@@ -55,15 +55,22 @@ def read_best_values(file):
     row = df.iloc[0]  # best-fit row
 
     sources = {}
+    terms = ["xcen", "ycen", "radius", "ytlc", "xtlc", "s_axis_max", "ratio", "strike", "dip", "length", "width"]
 
     for col in df.columns:
-        # Match x-columns: "xcen" or "xtlc_<n>"
-        m = re.match(r"(x(?:cen|tlc))(?:_(\d+))?", col)
-        if m:
-            idx = m.group(2) if m.group(2) else "1"  # default source = 1
-            x_key = col
-            y_key = col.replace("x", "y", 1)  # swap only first x→y
-            if y_key in row:
-                sources[f"source{idx}"] = [row[x_key], row[y_key]]
+        for term in terms:
+            # Match columns with the term and optional "_<n>", excluding those ending with "sigma"
+            m = re.match(fr"({term})(?:_(\d+))?(?<!sigma)$", col)
 
-    return list(sources.values())
+            if m:
+                feature = m.group(1)  # Extract the feature name (e.g., "xcen", "s_axis_max")
+                idx = m.group(2) if m.group(2) else "1"  # Default index = 1 if no "_<n>"
+
+                # Group by source index
+                if idx not in sources:
+                    sources[idx] = {}
+
+                sources[idx][feature] = row[col]
+                break
+
+    return sources

@@ -4,12 +4,14 @@ import os
 import sys
 import argparse
 
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib import colors, cm
+from scipy.interpolate import griddata
 from mintpy.cli.save_kite import main as skite
 from sourceinversion.shared.csv_functions import displacement_csv
 from sourceinversion.downsample.objects.downsample_methods import Downsample
+from sourceinversion.shared.helper_functions import convert_to_utm
 
 EXAMPLE = """
         run_downsample.py --folder CampiFlegrei --satellite Sen --method uniform --show
@@ -58,7 +60,7 @@ def create_parser():
     return inps
 
 
-def process_folder(input_folder, period_folder, node, out_file, inps):
+def process_folder(input_folder, period_folder, out_file, inps):
     # Velocity file is in the period folder
     velocity_file = [os.path.join(period_folder, f) for f in os.listdir(period_folder) if 'velocity_msk.h5' in f]
 
@@ -67,7 +69,7 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
         velocity_file = [os.path.join(period_folder, f) for f in os.listdir(period_folder) if 'velocity.h5' in f]
 
     # Other files are in the parent folder
-    mask_file = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'maskTempCoh.h5' in f]
+    # mask_file = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'maskTempCoh.h5' in f]
     geom_file = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'geometryRadar.h5' in f]
 
     kite_args = [velocity_file[0], "-d", "velocity", "-g", geom_file[0], "-o", out_file]
@@ -76,11 +78,36 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
         down = Downsample(velocity_file=velocity_file[0], geometry_file=geom_file[0])
         down.uniform(reduction=inps.reduce)
         if inps.show:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 5))
             if inps.style == 'scatter':
-                ax.scatter(down.x, down.y, c=down.z, s=1, cmap=inps.color_map)
+                ax[0].scatter(down.x, down.y, c=down.z, s=1, cmap=inps.color_map)
             elif inps.style == 'image':
-                ax.imshow(down.imshow, cmap=inps.color_map, extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
+                ax[0].imshow(down.imshow, cmap=inps.color_map, extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
+
+            #Interpolated result
+            xx, yy = convert_to_utm(longitude=down.longitude, latitude=down.latitude)
+            x = np.linspace(np.nanmin(xx), np.nanmax(xx), down.velocity.shape[1])
+            y = np.linspace(np.nanmax(yy), np.nanmin(yy), down.velocity.shape[0])
+            grid_x, grid_y = np.meshgrid(x, y)
+
+            valid_mask = ~np.isnan(down.velocity)
+
+            # Filter out NaN values from the input data
+            valid_points = ~np.isnan(down.x) & ~np.isnan(down.y) & ~np.isnan(down.z)
+            filtered_x = down.x[valid_points]
+            filtered_y = down.y[valid_points]
+            filtered_z = down.z[valid_points]
+
+            # Perform interpolation with the filtered data
+            interpolated_data = griddata((filtered_x, filtered_y), filtered_z, (grid_x, grid_y), method="linear")
+            masked_data = np.where(valid_mask, interpolated_data, np.nan)
+
+            ax[1].imshow(masked_data, cmap=inps.color_map, extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
+            ax[2].imshow(down.velocity, cmap=inps.color_map, extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
+
+            ax[0].set_title('Reduced', fontsize=16, pad=10)
+            ax[1].set_title('Interpolated', fontsize=16, pad=10)
+            ax[2].set_title('Original', fontsize=16, pad=10)
 
     elif inps.method == 'quadtree':
         skite(kite_args)
@@ -110,9 +137,6 @@ def process_folder(input_folder, period_folder, node, out_file, inps):
 
     # Save the downsampled data
     displacement_csv(file=out_file, x=down.x, y=down.y, z=down.z, err=down.err, lose=down.lose, losn=down.losn, losz=down.losz)
-
-    if inps.show:
-        plt.show()
 
 
 def main(iargs=None):
@@ -147,11 +171,14 @@ def main(iargs=None):
                         continue
 
                     out_file = os.path.join(period_folder, inps.folder + node)
-                    process_folder(input_folder, period_folder, node, out_file, inps)
+                    process_folder(input_folder, period_folder, out_file, inps)
             else:
                 # Process the main folder as usual
                 out_file = os.path.join(input_folder, inps.folder + node)
-                process_folder(input_folder, input_folder, node, out_file, inps)
+                process_folder(input_folder, input_folder, out_file, inps)
+
+    if inps.show:
+        plt.show()
 
 
 if __name__ == '__main__':

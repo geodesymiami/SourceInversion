@@ -2,6 +2,7 @@ import os
 import glob
 import numpy as np
 from pyproj import Transformer
+from scipy.ndimage import zoom
 
 SCRATCHDIR = os.getenv('SCRATCHDIR')
 
@@ -31,6 +32,34 @@ MODEL_DEFS = {
         'params': ['length', 'width', 'strike', 'dip', 'slip', 'rake', 'opening'],
     }
 }
+
+
+def resize_to_match(target, reference, name):
+    """
+    Resize the target array to match the shape of the reference array.
+
+    Parameters:
+    target (ndarray): The array to be resized.
+    reference (ndarray): The array whose shape will be matched.
+    name (str): A name for the target array, used in error messages.
+
+    Returns:
+    ndarray: The resized target array if the shapes do not match, otherwise the original target array.
+
+    Raises:
+    ValueError: If the target array has an invalid shape (i.e., any dimension is non-positive).
+    """
+
+    if target.shape != reference.shape:
+        if all(dim > 0 for dim in target.shape):
+            zoom_factors = (
+                reference.shape[0] / target.shape[0],
+                reference.shape[1] / target.shape[1],
+            )
+            return zoom(target, zoom_factors, order=1)
+        else:
+            raise ValueError(f"Invalid shape for {name}: {target.shape}")
+    return target
 
 
 def extent2meshgrid(extent: tuple, ds_shape: list):

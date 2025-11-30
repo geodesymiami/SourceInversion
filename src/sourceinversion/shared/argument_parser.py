@@ -38,7 +38,7 @@ def add_okada_parameters(parser):
 
 def add_sampling_parameters(parser):
     sampling = parser.add_argument_group('Sampling parameters')
-    sampling.add_argument('--sampling-id', type=str, choices=['0', '1'], default='0', help="Sampling ID, 0 for Natural Neighbor 1 for Bayesian (default: %(default)s).")
+    sampling.add_argument('--sampling-id', type=str, choices=['0', '1'], default='1', help="Sampling ID, 0 for Natural Neighbor 1 for Bayesian (default: %(default)s).")
     sampling.add_argument('--p1', type=str, default='1000', help="Number of models to generate during the inversion (default: %(default)s).")
     sampling.add_argument('--p2', type=str, default='300', help="Number of models to keep after each iteration(default: %(default)s).")
     sampling.add_argument('--p3', type=str, default='30', help="Number of BI steps (default: %(default)s).")
