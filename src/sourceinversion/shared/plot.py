@@ -64,11 +64,11 @@ class InversionPlotter:
 
         # choose layout dynamically
         if self.inps.fullres and self.deformation is not None:
-            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+            fig, axes = plt.subplots(2, 3, figsize=(20, 9), constrained_layout=True)
             top_axes = axes[0, :]
             bottom_axes = axes[1, :]
         else:
-            fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+            fig, axes = plt.subplots(1, 3, figsize=(20, 4), constrained_layout=True)
             top_axes = axes
             bottom_axes = None
 
@@ -76,15 +76,33 @@ class InversionPlotter:
 
         # top row
         create_panel(top_axes[0], self.east, self.north, self.data, "Data", "jet", color_min, color_max, sources=self.sources)
-        self._plot_bbox(top_axes[0])
 
         create_panel(top_axes[1], self.east, self.north, self.synth, "Model", "jet", color_min, color_max, sources=self.sources)
 
         create_panel(top_axes[2], self.east, self.north, residuals, "Residual", "bwr", color_min/4, color_max/4, sources=self.sources)
 
+        for ax in top_axes[1 :]:
+            ax.set_yticklabels([])
+
+        for ax in top_axes:
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+
+        for ax in axes:
+            ax.set_box_aspect(0.5)
+
         # optional deformation row
         if bottom_axes is not None:
             self._plot_deformation(bottom_axes, color_min, color_max)
+            for ax in bottom_axes[1 :]:
+                ax.set_yticklabels([])
+
+            for ax in bottom_axes:
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+
+            for ax in top_axes:
+                ax.set_xticklabels([])
+
+        self._plot_bbox(top_axes[0])
 
         return fig
 
@@ -156,7 +174,6 @@ class Spheroid():
 
         ax.plot(x_major, y_major, 'r-', label='Major Axis')  # Major axis in red
         ax.plot(x_minor, y_minor, 'b-', label='Minor Axis')  # Minor axis in blue
-        ax.set_aspect('equal', adjustable='datalim')
 
 
 class Penny():

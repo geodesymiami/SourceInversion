@@ -28,7 +28,7 @@ class Downsample:
         print(f"Loading {self.velocity_file}.\n")
 
 
-    # TODO deprecated with _resize_to_match
+    # TODO deprecated with resize_to_match
     def _resize(self):
         """
         Resizes the incident angle, azimuth angle, latitude, and longitude arrays 

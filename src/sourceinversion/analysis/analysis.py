@@ -58,7 +58,7 @@ def get_file(path):
 
 def main(iargs=None):
     print("-" * 50)
-    print("Starting Decomposition Module...")
+    print("Starting Analysis Module...")
     print("-" * 50)
     print()
 
@@ -112,6 +112,9 @@ def main(iargs=None):
             print('-' * 50)
             print(f"Comparing maps for node: {key}\n")
             am.spatial_correlation_maps(*data)
+
+    if inps.method == "centroid_shift":
+        pass
 
 
 if __name__ == '__main__':
