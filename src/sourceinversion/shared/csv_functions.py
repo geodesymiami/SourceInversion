@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import numpy as np
 import pandas as pd
 
 def displacement_csv(file, x, y, z, err, lose, losn, losz):

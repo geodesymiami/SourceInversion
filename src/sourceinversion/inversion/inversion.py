@@ -6,6 +6,7 @@ import sys
 import glob
 import logging
 import argparse
+import numpy as np
 import pandas as pd
 from VSM.VSM import VSM
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ from mintpy.utils import readfile
 from sourceinversion.shared.plot import InversionPlotter
 # from sourceinversion.shared.plot import plot_results as plot
 from sourceinversion.shared.csv_functions import results_csv, read_best_values
-from sourceinversion.shared.helper_functions import inversion_template, get_bounding_box, SCRATCHDIR, MODEL_DEFS
+from sourceinversion.shared.helper_functions import inversion_template, get_bounding_box, SCRATCHDIR, MODEL_DEFS, convert_to_utm
 from sourceinversion.shared.argument_parser import add_mogi_parameters, add_penny_parameters, add_spheroid_parameters, add_okada_parameters, add_sampling_parameters, add_coordinates_parameters
 
 
@@ -29,7 +30,7 @@ def create_parser():
     parser = argparse.ArgumentParser(description=synopsis, epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
 
     # Add arguments
-    parser.add_argument('--folder', type=str, required=True, help="Path to the folder.")
+    parser.add_argument('--path', type=str, required=True, help="Path to the folder.")
     parser.add_argument('--satellite', type=str, default='Sen', choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
     parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: %(default)s).")
@@ -41,7 +42,11 @@ def create_parser():
     parser.add_argument('--bbox', action='store_true', help="Show bounding box of x and y range on plot.")
     parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
     parser.add_argument('--fullres', dest='fullres', action='store_true', help="Show full resolution data.")
+    parser.add_argument('--zoom', type=float, default=1, help="Zoom factor for the plot (default: %(default)s).")
+    parser.add_argument('--subset', type=str, default=None, help="Subsection coordinates for zoom in, LAT,LON:LAT,LON")
     parser.add_argument('--save', action='store_true', help="Save the plot as PNG.")
+    parser.add_argument('--size', type=float, default=None, help="Marker size for scatter plot (default: 20).")
+    parser.add_argument('--style', type=str, default='image', choices=['scatter', 'image'], help="Plot style: scatter or image (default: scatter).")
 
     parser = add_mogi_parameters(parser)
     parser = add_penny_parameters(parser)
@@ -53,10 +58,18 @@ def create_parser():
     # Parse arguments
     inps = parser.parse_args()
 
-    inps.folder_path = inps.folder if SCRATCHDIR in inps.folder else os.path.join(SCRATCHDIR, inps.folder)
+    inps.folder_path = inps.path if (SCRATCHDIR in inps.path or (os.path.isabs(inps.path))) else os.path.join(SCRATCHDIR, inps.path)
+
+    if not inps.size:
+        inps.size = 20 * (inps.zoom ** 3)
 
     if inps.satellite and inps.weight_sar == 0.0:
         inps.weight_sar = 1.0
+
+    if inps.subset:
+        inps.subset = inps.subset.replace(',',' ').replace(':',' ').split(' ')
+        e, n = convert_to_utm(longitude=[float(inps.subset[1]), float(inps.subset[3])], latitude=[float(inps.subset[0]), float(inps.subset[2])])
+        inps.subset = [min(e), max(e), min(n), max(n)]
 
     if inps.period:
         inps.period_folder = []
@@ -183,10 +196,39 @@ def plot_results(inps, output_folder, period=None, file_dictionary=None):
     for file in os.listdir(output_folder):
         if 'VSM_synth' in file and file.endswith('.csv'):
             east, north, data, synth = results_csv(os.path.join(output_folder, file))
-            deformation, metadata = readfile.read(file_dictionary[file])
+            deformation, metadata = readfile.read(file_dictionary[file]) #Full resolution
+
+            for f in os.listdir(os.path.dirname(file_dictionary[file])):
+                if 'downsampled' in f and 'velocity' in f:
+                    v, m = readfile.read(os.path.join(os.path.dirname(file_dictionary[file]), f)) #Downsampled
+                    inps.length = m.get('length', m.get('LENGTH', None))
+                    inps.width = m.get('width', m.get('WIDTH', None))
+                    inps.mask = ~np.isnan(v)
+                    break
+
             lat, lon = get_bounding_box(metadata)
 
-            plotter = InversionPlotter(inps, east, north, data, synth, deformation, inps.model, sources=sources, period=period, latitude=lat, longitude=lon, bbox=inps.bbox)
+            if inps.period:
+                temp = os.path.dirname(file_dictionary[file]).replace(inps.period[0].replace(':','_'),'')
+            else:
+                temp = os.path.dirname(file_dictionary[file])
+
+            geometry_file = None
+            geometry_data = None
+            for f in os.listdir(temp):
+                if 'geometryRadar.h5' in f:
+                    geometry_file = os.path.join(temp, f)
+
+                    if os.path.exists(geometry_file.replace('.h5', '_downsampled.h5')):
+                        m = readfile.read(geometry_file.replace('.h5', '_downsampled.h5'), datasetName='height')[1]
+                        length = m.get('length', m.get('LENGTH', None))
+                        width = m.get('width', m.get('WIDTH', None))
+                    break
+
+            if geometry_file:
+                geometry_data = readfile.read(geometry_file, datasetName='height')[0]
+
+            plotter = InversionPlotter(metadata, inps, east, north, data, geometry_data, synth, deformation, inps.model, sources=sources, period=period, latitude=lat, longitude=lon, bbox=inps.bbox)
 
             fig = plotter.plot()
             figures.append(fig)
@@ -266,15 +308,41 @@ def gather_all_inputs(inps, folder_list, regex, period=None):
     return input_sar
 
 
+def configure_logging(inps):
+    """Configure root logging to write to <inps.folder_path>/log and log the command (basename only)."""
+    os.makedirs(inps.folder_path, exist_ok=True)
+    log_path = os.path.join(inps.folder_path, 'log')
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    # remove existing handlers to avoid duplicate logging
+    for h in list(root.handlers):
+        root.removeHandler(h)
+
+    formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d')
+
+    fh = logging.FileHandler(log_path)
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(formatter)
+    root.addHandler(fh)
+
+    # optional console logging
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(formatter)
+    root.addHandler(sh)
+
+    # Log the command-line command but only the script basename
+    script_name = os.path.basename(sys.argv[0]) if len(sys.argv) > 0 else ''
+    rest = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else ''
+    cmd_command = f"{script_name} {rest}".strip()
+    logging.info(cmd_command)
+
+
 def main(iargs=None):
     inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
 
-    # Configure logging to write to a log file
-    logging.basicConfig(filename=os.path.join(inps.folder_path, 'log'), level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d')
-
-    # Log the command-line command
-    cmd_command = ' '.join(sys.argv)
-    logging.info(cmd_command)
+    configure_logging(inps)
 
     print("-" * 50)
     print("Starting Inversion Module...")

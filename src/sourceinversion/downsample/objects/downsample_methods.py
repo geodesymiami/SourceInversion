@@ -1,7 +1,7 @@
 import numpy as np
+import os
 from kite import Scene
-from scipy.ndimage import zoom
-from mintpy.utils import readfile
+from mintpy.utils import readfile, writefile
 from sourceinversion.shared.helper_functions import convert_to_utm, resize_to_match
 
 
@@ -11,79 +11,22 @@ class Downsample:
         self.geometry_file = geometry_file
         self.velocity, self.metadata = readfile.read(self.velocity_file)
 
-        self.incident_angle = readfile.read(self.geometry_file, datasetName='/incidenceAngle')[0]
+        self.incident_angle, self.geometry_metadata = readfile.read(self.geometry_file, datasetName='/incidenceAngle')
         self.azimuth_angle = readfile.read(self.geometry_file, datasetName='/azimuthAngle')[0]
         self.latitude = readfile.read(self.geometry_file, datasetName='latitude')[0]
         self.longitude = readfile.read(self.geometry_file, datasetName='longitude')[0]
+        self.height = readfile.read(self.geometry_file, datasetName='height')[0]
         self.kite_file = kite_file
 
         self.incident_angle = resize_to_match(self.incident_angle, self.velocity, "incident_angle")
         self.azimuth_angle = resize_to_match(self.azimuth_angle, self.velocity, "azimuth_angle")
         self.latitude = resize_to_match(self.latitude, self.velocity, "latitude")
         self.longitude = resize_to_match(self.longitude, self.velocity, "longitude")
-
-        # self._resize()
+        self.height = resize_to_match(self.height, self.velocity, "height")
 
         print("-" * 50)
         print(f"Loading {self.velocity_file}.\n")
 
-
-    # TODO deprecated with resize_to_match
-    def _resize(self):
-        """
-        Resizes the incident angle, azimuth angle, latitude, and longitude arrays 
-        to match the shape of the velocity array using linear interpolation.
-
-        Raises:
-            ValueError: If the shape of any of the arrays (incident_angle, 
-            azimuth_angle, latitude, longitude) is invalid (i.e., contains 
-            non-positive dimensions).
-
-        The method checks each of the angle and coordinate arrays against the 
-        velocity array's shape and applies a zoom operation if their shapes 
-        do not match. The zoom factors are calculated based on the ratio of 
-        the dimensions of the velocity array to the respective array.
-        """
-
-        if self.incident_angle.shape != self.velocity.shape:
-            if all(dim > 0 for dim in self.incident_angle.shape):
-                zoom_factors = (
-                    self.velocity.shape[0] / self.incident_angle.shape[0],
-                    self.velocity.shape[1] / self.incident_angle.shape[1],
-                )
-                self.incident_angle = zoom(self.incident_angle, zoom_factors, order=1)
-            else:
-                raise ValueError("Invalid shape for incident_angle: {}".format(self.incident_angle.shape))
-
-        if self.azimuth_angle.shape != self.velocity.shape:
-            if all(dim > 0 for dim in self.azimuth_angle.shape):
-                zoom_factors = (
-                    self.velocity.shape[0] / self.azimuth_angle.shape[0],
-                    self.velocity.shape[1] / self.azimuth_angle.shape[1],
-                )
-                self.azimuth_angle = zoom(self.azimuth_angle, zoom_factors, order=1)  # Linear interpolation
-            else:
-                raise ValueError("Invalid shape for azimuth_angle: {}".format(self.azimuth_angle.shape))
-
-        if self.latitude.shape != self.velocity.shape:
-            if all(dim > 0 for dim in self.latitude.shape):
-                zoom_factors = (
-                    self.velocity.shape[0] / self.latitude.shape[0],
-                    self.velocity.shape[1] / self.latitude.shape[1],
-                )
-                self.latitude = zoom(self.latitude, zoom_factors, order=1)
-            else:
-                raise ValueError("Invalid shape for latitude: {}".format(self.latitude.shape))
-
-        if self.longitude.shape != self.velocity.shape:
-            if all(dim > 0 for dim in self.longitude.shape):
-                zoom_factors = (
-                    self.velocity.shape[0] / self.longitude.shape[0],
-                    self.velocity.shape[1] / self.longitude.shape[1],
-                )
-                self.longitude = zoom(self.longitude, zoom_factors, order=1)
-            else:
-                raise ValueError("Invalid shape for longitude: {}".format(self.longitude.shape))
 
     def uniform(self, reduction=3):
         """Downsample the velocity data using a mask and geometry file.
@@ -105,16 +48,17 @@ class Downsample:
 
         # Slice and flatten arrays
         self.imshow = self.velocity[::skip, ::skip]
-        sliced_x = self.longitude[::skip, ::skip]
-        sliced_y = self.latitude[::skip, ::skip]
-        sliced_incident_angle = self.incident_angle[::skip, ::skip]
-        sliced_azimuth_angle = self.azimuth_angle[::skip, ::skip]
+        self.sliced_x = self.longitude[::skip, ::skip]
+        self.sliced_y = self.latitude[::skip, ::skip]
+        self.sliced_incident_angle = self.incident_angle[::skip, ::skip]
+        self.sliced_azimuth_angle = self.azimuth_angle[::skip, ::skip]
+        self.sliced_height = self.height[::skip, ::skip]
 
         z = self.imshow.flatten()
-        x = sliced_x.flatten()
-        y = sliced_y.flatten()
-        incident_angle = sliced_incident_angle.flatten()
-        azimuth_angle = sliced_azimuth_angle.flatten()
+        x = self.sliced_x.flatten()
+        y = self.sliced_y.flatten()
+        incident_angle = self.sliced_incident_angle.flatten()
+        azimuth_angle = self.sliced_azimuth_angle.flatten()
 
         # Apply mask to remove NaN values
         mask = ~np.isnan(z)
@@ -131,6 +75,7 @@ class Downsample:
         self.azimuth = azimuth_angle
 
         self._LOS()
+        self._write_file()
 
 
     def quadtree(self, epsilon=0.0029, tile_size_max=0.02, tile_size_min=0.002, nan_allowed=0.9):
@@ -172,6 +117,39 @@ class Downsample:
         )
 
         self._LOS()
+
+    # TODO Change to adapt to quadtree and others
+    def _write_file(self):
+        """Write downsampled data to a file using mintpy writefile utility."""
+        new_shape = tuple(self.imshow.shape)
+        if len(new_shape) >= 2:
+            nx, ny = int(new_shape[-1]), int(new_shape[-2])
+            for k in ('width','WIDTH'):
+                if k in self.metadata:
+                    self.metadata[k] = np.int64(nx)
+                if k in self.geometry_metadata:
+                    self.geometry_metadata[k] = np.int64(nx)
+            for k in ('length', 'LENGTH'):
+                if k in self.metadata:
+                    self.metadata[k] = np.int64(ny)
+                if k in self.geometry_metadata:
+                    self.geometry_metadata[k] = np.int64(ny)
+        # write velocity
+        file_path = self.velocity_file.replace('.h5', '_downsampled.h5')
+        datasetDict = {'velocity': self.imshow}
+        self.metadata['FILE_PATH'] = file_path
+        writefile.write(datasetDict, metadata=self.metadata, out_file=file_path)
+        # write geometry (use self.geometry_file, not self.geom)
+        file_path = self.geometry_file.replace('.h5', '_downsampled.h5')
+        datasetDict = {
+            'incidenceAngle': self.sliced_incident_angle,
+            'azimuthAngle': self.sliced_azimuth_angle,
+            'latitude': self.sliced_y,
+            'longitude': self.sliced_x,
+            'height': self.sliced_height,
+        }
+        self.geometry_metadata['FILE_PATH'] = file_path
+        writefile.write(datasetDict, metadata=self.geometry_metadata, out_file=file_path)
 
 
     def _extract_geometry_values(self, lats, lons, lat_min, lat_max, lon_min, lon_max, shape, incident_angle, azimuth_angle):

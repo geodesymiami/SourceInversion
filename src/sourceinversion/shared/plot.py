@@ -1,44 +1,20 @@
 import numpy as np
+import re
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-from matplotlib.ticker import MaxNLocator
-from matplotlib.patches import Rectangle
 from scipy.interpolate import griddata
-from sourceinversion.shared.helper_functions import convert_to_utm
-
-def create_panel(ax, x, y, values, title, cmap, vmin, vmax, size=15, sources=None):
-    """Draw a scatter panel with optional sources overlay."""
-    img = ax.scatter(x, y, size, values, cmap=cmap, vmin=vmin, vmax=vmax)
-    cbar = plt.colorbar(img, orientation='horizontal', ax=ax)
-    cbar.set_ticks([vmin, (vmin + vmax) / 2, vmax])
-    cbar.set_label("LOS (m)")
-    ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.set_title(title, fontsize=16, pad=10)
-
-    if sources:
-        source_type = {
-            "mogi": {"class": Mogi, "attributes": ["xcen", "ycen"]},
-            "spheroid": {"class": Spheroid, "attributes": ["xcen", "ycen", "s_axis_max", "ratio", "strike", "dip"]},
-            "penny": {"class": Penny,  "attributes": ["xcen", "ycen", "radius"]},
-            "okada": {"class": Okada,  "attributes": ["ytlc", "xtlc", "length", "width", "strike", "dip"]},
-        }
-        for s in sources:
-            s_keys = set(sources[s].keys())
-
-            for key, value in source_type.items():
-                if set(value["attributes"]) == s_keys:
-                    model = value["class"]
-                    model(ax, **sources[s])
-
-    return ax
+from matplotlib.patches import Rectangle
+from matplotlib.ticker import MaxNLocator
+from matplotlib.colors import LightSource
+from sourceinversion.shared.helper_functions import convert_to_utm, resize_to_match
 
 
 class InversionPlotter:
-    def __init__(self, inps, east, north, data, synth, deformation, model, sources=None, period=None, latitude=None, longitude=None, bbox=None):
+    def __init__(self, metadata, inps, east, north, data, geometry, synth, deformation, model, sources=None, period=None, latitude=None, longitude=None, bbox=None):
+        self.metadata = metadata
         self.east = east
         self.north = north
         self.data = data
+        self.geometry = geometry
         self.synth = synth
         self.deformation = deformation
         self.model = model
@@ -49,16 +25,17 @@ class InversionPlotter:
         self.bbox = bbox
         self.inps = inps
 
-    def _plot_bbox(self, ax):
-        if getattr(self.inps, "bbox", False):
-            for x, y in zip(self.inps.x, self.inps.y):
-                x_min, x_max = x
-                y_min, y_max = y
-                rect = Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=2, edgecolor="black", facecolor="none", alpha=0.3)
-                ax.add_patch(rect)
+        self.properties = {
+            "Data": {"cmap": "jet",
+                     "data": self.data,},
+            "Model": {"cmap": "jet",
+                      "data": self.synth},
+            "Residual": {"cmap": "bwr",
+                         "data": self.data - self.synth},
+        }
+
 
     def plot(self):
-        residuals = self.data - self.synth
         high_val = max(np.abs(self.data)) * 1.1
         color_min, color_max = -high_val, high_val
 
@@ -74,20 +51,14 @@ class InversionPlotter:
 
         fig.suptitle(f"Model: {', '.join(map(str, self.model))}"+ (f", Period: {self.period.replace('_', ' ')}" if self.period else ""),fontsize=10,)
 
-        # top row
-        create_panel(top_axes[0], self.east, self.north, self.data, "Data", "jet", color_min, color_max, sources=self.sources)
-
-        create_panel(top_axes[1], self.east, self.north, self.synth, "Model", "jet", color_min, color_max, sources=self.sources)
-
-        create_panel(top_axes[2], self.east, self.north, residuals, "Residual", "bwr", color_min/4, color_max/4, sources=self.sources)
+        for i, line in enumerate(self.properties.keys()):
+            self._create_panel(top_axes[i], self.east, self.north, self.properties[line]["data"], line, self.properties[line]["cmap"], color_min, color_max, sources=self.sources, size=self.inps.size)
 
         for ax in top_axes[1 :]:
             ax.set_yticklabels([])
 
         for ax in top_axes:
             ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
-
-        for ax in axes:
             ax.set_box_aspect(0.5)
 
         # optional deformation row
@@ -98,17 +69,37 @@ class InversionPlotter:
 
             for ax in bottom_axes:
                 ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+                ax.set_box_aspect(0.5)
 
             for ax in top_axes:
                 ax.set_xticklabels([])
 
         self._plot_bbox(top_axes[0])
 
+        # Apply zoom/subsection if requested in inputs
+        # inps.subsection may be a 4-tuple/list (xmin, xmax, ymin, ymax) or a
+        # string like 'xmin,xmax,ymin,ymax' or 'xmin:xmax,ymin:ymax'.
+        try:
+            self._apply_zoom(top_axes)
+            if bottom_axes is not None:
+                self._apply_zoom(bottom_axes)
+        except Exception:
+            # keep plotting even if zoom fails
+            pass
+
         return fig
+
+    def _plot_bbox(self, ax):
+        if getattr(self.inps, "bbox", False):
+            for x, y in zip(self.inps.x, self.inps.y):
+                x_min, x_max = x
+                y_min, y_max = y
+                rect = Rectangle((x_min, y_min), x_max - x_min, y_max - y_min, linewidth=2, edgecolor="black", facecolor="none", alpha=0.3)
+                ax.add_patch(rect)
 
     def _plot_deformation(self, axes, color_min, color_max):
         #Interpolated result
-        xx, yy = convert_to_utm(longitude=self.longitude, latitude=self.latitude)
+        xx, yy = convert_to_utm(longitude=[np.nanmin(self.longitude), np.nanmax(self.longitude)], latitude=self.latitude)
         x = np.linspace(np.min(xx), np.max(xx), self.deformation.shape[1])
         y = np.linspace(np.max(yy), np.min(yy), self.deformation.shape[0])
         grid_x, grid_y = np.meshgrid(x, y)
@@ -127,6 +118,121 @@ class InversionPlotter:
         axes[1].scatter(grid_x[valid_mask], grid_y[valid_mask], c=synth_masked, cmap="jet", vmin=color_min, vmax=color_max, s=1)
 
         axes[2].scatter(x_flat, y_flat, c=diff, cmap="bwr", vmin=color_min/5, vmax=color_max/5, s=1)
+
+    def _create_panel(self, ax, x, y, values, title, cmap, vmin, vmax, size=15, sources=None):
+        """Draw a scatter panel with optional sources overlay, using self.sources by default."""
+        sources = sources if sources is not None else self.sources
+        longitude, latitude = convert_to_utm(longitude=self.longitude, latitude=self.latitude)
+
+        if self.geometry is not None:
+           self._plot_dem(ax, longitude, latitude)
+
+        if self.inps.style=='image':
+            nrows, ncols = int(self.inps.length), int(self.inps.width)
+
+            xx = np.linspace(np.min(longitude), np.max(longitude), ncols)
+            yy = np.linspace(np.min(latitude), np.max(latitude), nrows)
+
+            Xi, Yi = np.meshgrid(xx, yy)
+
+            grid = griddata((x, y), values, (Xi, Yi), method="linear")
+            data = np.where(np.flipud(self.inps.mask), grid, np.nan) if hasattr(self.inps, 'mask') else grid
+            img = ax.imshow(data, origin='lower', cmap=cmap, vmin=vmin, vmax=vmax , extent=(np.min(longitude), np.max(longitude), np.min(latitude), np.max(latitude)), alpha=0.8)
+
+        elif self.inps.style=='scatter':
+            img = ax.scatter(x, y, s=size, c=values, cmap=cmap, vmin=vmin, vmax=vmax, edgecolors='none',)
+
+        cbar = plt.colorbar(img, orientation='horizontal', ax=ax, shrink=0.4)
+        img.set_alpha(1)
+        cbar.set_ticks([vmin, (vmin + vmax) / 2, vmax])
+        cbar.set_label("LOS (m)")
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+        ax.set_title(title, fontsize=16, pad=10)
+
+        if sources:
+            source_type = {
+                "mogi": {"class": Mogi, "attributes": ["xcen", "ycen"]},
+                "spheroid": {"class": Spheroid, "attributes": ["xcen", "ycen", "s_axis_max", "ratio", "strike", "dip"]},
+                "penny": {"class": Penny,  "attributes": ["xcen", "ycen", "radius"]},
+                "okada": {"class": Okada,  "attributes": ["ytlc", "xtlc", "length", "width", "strike", "dip"]},
+            }
+            for s in sources:
+                s_keys = set(sources[s].keys())
+
+                for key, value in source_type.items():
+                    if set(value["attributes"]) == s_keys:
+                        model = value["class"]
+                        model(ax, **sources[s])
+
+        return ax
+
+    def _plot_dem(self, ax, x, y):
+        lat = np.linspace(np.min(y), np.max(y), self.geometry.shape[0])
+        lon = np.linspace(np.min(x), np.max(x), self.geometry.shape[1])
+        lon2d, lat2d = np.meshgrid(lon, lat)
+        dlon, dlat = lat[1] - lat[0], lon[1] - lon[0]
+
+        ls = LightSource(azdeg=315, altdeg=45)
+        hillshade = ls.hillshade(self.geometry, vert_exag=1, dx=dlon, dy=dlat)
+
+        # Use pcolormesh to plot hillshade using real coordinates
+        ax.pcolormesh(lon2d,lat2d,np.flipud(hillshade),cmap='gray',shading='auto', zorder=0)
+
+    def _apply_zoom(self, axes):
+        """Apply zoom or subsection to a set of axes.
+
+        - If `self.inps.zoom` is provided (float > 1), zoom in by that factor around data center.
+        - If `self.inps.subsection` is provided, it can be a tuple/list of 4 floats
+          (xmin, xmax, ymin, ymax) or a comma/colon separated string. We apply
+          those limits to all axes passed in `axes`.
+        """
+        # normalize axes list
+        if not hasattr(axes, '__iter__'):
+            axes = [axes]
+
+        # helper to set limits for each axis
+        def set_limits(ax , x0, x1, y0, y1):
+            ax.set_xlim(x0, x1)
+            ax.set_ylim(y0, y1)
+
+        # 1) subsection has priority over zoom
+        sub = getattr(self.inps, 'subset', None)
+        if sub:
+            # accept tuple/list or string
+            if isinstance(sub, (list, tuple)) and len(sub) == 4:
+                xmin, xmax, ymin, ymax = map(float, sub)
+            else:
+                # parse strings like 'xmin,xmax,ymin,ymax' or 'xmin:xmax,ymin:ymax'
+                s = str(sub)
+                s = s.replace(':', ',')
+                parts = [p for p in re.split('[,\s]+', s) if p]
+                if len(parts) != 4:
+                    raise ValueError('Invalid subsection format; expected 4 values')
+                xmin, xmax, ymin, ymax = map(float, parts)
+
+            for ax in axes:
+                set_limits(ax, xmin, xmax, ymin, ymax)
+            return
+
+        # 2) zoom factor
+        z = getattr(self.inps, 'zoom', None)
+        if z:
+            try:
+                factor = float(z)
+            except Exception:
+                return
+
+            # compute data center from east/north
+            cx = 0.5 * (np.nanmin(self.east) + np.nanmax(self.east))
+            cy = 0.5 * (np.nanmin(self.north) + np.nanmax(self.north))
+            full_w = np.nanmax(self.east) - np.nanmin(self.east)
+            full_h = np.nanmax(self.north) - np.nanmin(self.north)
+            w = full_w / factor
+            h = full_h / factor
+
+            for ax in axes:
+                set_limits(ax, cx - 0.5 * w, cx + 0.5 * w, cy - 0.5 * h, cy + 0.5 * h)
 
 
 class Mogi():
