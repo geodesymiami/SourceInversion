@@ -1,8 +1,11 @@
 import os
 import glob
 import numpy as np
-from pyproj import Transformer
+import pandas as pd
+import xarray as xr
 from scipy.ndimage import zoom
+from pyproj import Transformer
+from mintpy.utils import readfile, writefile
 
 SCRATCHDIR = os.getenv('SCRATCHDIR')
 
@@ -245,3 +248,95 @@ def get_bounding_box(metadata):
         lon_out.append(lon_i)
 
     return [min(lat_out), max(lat_out)], [min(lon_out), max(lon_out)]
+
+
+class PrepareData():
+    def read_mintpy(self, velocity_file, geometry_file):
+        print("-" * 50)
+        print(f"Loading {velocity_file} and {geometry_file} with mintpy utils...\n")
+
+        self.velocity_file = velocity_file
+        self.geometry_file = geometry_file
+
+        self.velocity, self.metadata = readfile.read(velocity_file)
+        self.incident_angle, self.geometry_metadata = readfile.read(geometry_file, datasetName='/incidenceAngle')
+        self.azimuth_angle = readfile.read(geometry_file, datasetName='/azimuthAngle')[0]
+        self.latitude = readfile.read(geometry_file, datasetName='latitude')[0]
+        self.longitude = readfile.read(geometry_file, datasetName='longitude')[0]
+        self.height = readfile.read(geometry_file, datasetName='height')[0]
+
+        self._resize()
+
+    def write_csv(self, out_csv):
+        """Write data to CSV file."""
+        vel_flat = self.velocity.flatten()
+        inc_flat = self.incident_angle.flatten()
+        azm_flat = self.azimuth_angle.flatten()
+        lat_flat = self.latitude.flatten()
+        lon_flat = self.longitude.flatten()
+        hgt_flat = self.height.flatten()
+
+        x, y = convert_to_utm(longitude=lon_flat, latitude=lat_flat)
+
+        df = pd.DataFrame({
+            'latitude': lat_flat,
+            'longitude': lon_flat,
+            'y': y,
+            'x': x,
+            'velocity': vel_flat,
+            'azimuth_angle': azm_flat,
+            'incidence_angle': inc_flat,
+            'height': hgt_flat
+        })
+
+        df.to_csv(out_csv, index=False, na_rep='NaN')
+
+        print("-" * 50)
+        print(f"Writing CSV file: {out_csv}...\n")
+
+
+    def write_netcdf(self, out_nc):
+        """
+        Write data to NetCDF preserving 2D structure.
+        """
+
+        x, y = convert_to_utm(longitude=self.longitude, latitude=self.latitude)
+
+        ds = xr.Dataset(
+            data_vars=dict(
+                velocity=(("y", "x"), self.velocity),
+                incidence_angle=(("y", "x"), self.incident_angle),
+                azimuth_angle=(("y", "x"), self.azimuth_angle),
+                height=(("y", "x"), self.height),
+            ),
+            coords=dict(
+                latitude=(("y", "x"), self.latitude),
+                longitude=(("y", "x"), self.longitude),
+                x=(("y", "x"), x),
+                y=(("y", "x"), y)
+            ),
+            attrs=dict(
+                description="InSAR velocity and geometry",
+            ),
+        )
+
+        ds.to_netcdf(out_nc)
+
+        print("-" * 50)
+        print(f"Writing NetCDF file: {out_nc}\n")
+
+    def _resize(self):
+        self.incident_angle = resize_to_match(self.incident_angle, self.velocity, "incident_angle")
+        self.azimuth_angle = resize_to_match(self.azimuth_angle, self.velocity, "azimuth_angle")
+        self.latitude = resize_to_match(self.latitude, self.velocity, "latitude")
+        self.longitude = resize_to_match(self.longitude, self.velocity, "longitude")
+        self.height = resize_to_match(self.height, self.velocity, "height")
+
+    def _LOS(self):
+        self.ref_lat = float(self.metadata['REF_LAT'])
+        self.ref_lon = float(self.metadata['REF_LON'])
+
+        # Calculate LOS components using metadata values
+        self.lose = -np.sin(np.deg2rad(self.incident_angle)) * np.cos(np.deg2rad(self.azimuth_angle)-np.pi/2)
+        self.losn = np.sin(np.deg2rad(self.incident_angle)) * np.sin(np.deg2rad(self.azimuth_angle)-np.pi/2)
+        self.losz = np.cos(np.deg2rad(self.incident_angle))

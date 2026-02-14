@@ -31,6 +31,7 @@ def create_parser():
 
     # Add arguments
     parser.add_argument('--path', type=str, required=True, help="Path to the folder.")
+    parser.add_argument('--output-folder', type=str, default=None, help="Output folder for inversion results.")
     parser.add_argument('--satellite', type=str, default='Sen', choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
     parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: %(default)s).")
@@ -47,6 +48,7 @@ def create_parser():
     parser.add_argument('--save', action='store_true', help="Save the plot as PNG.")
     parser.add_argument('--size', type=float, default=None, help="Marker size for scatter plot (default: 20).")
     parser.add_argument('--style', type=str, default='image', choices=['scatter', 'image'], help="Plot style: scatter or image (default: scatter).")
+    parser.add_argument('--vlim', type=float, nargs=2, default=None, help="Velocity limits for color scale (default: min and max of data).")
 
     parser = add_mogi_parameters(parser)
     parser = add_penny_parameters(parser)
@@ -176,9 +178,13 @@ def run_vsm(inps, output_folder, input_sar, model_inputs):
         print("VSM_synth already exists, skipping inversion.\n")
 
     sar_dict = {}
-    for i, path in enumerate(input_sar.split()):
-        matching_files = [os.path.join(os.path.dirname(path), f) for f in os.listdir(os.path.dirname(path)) if 'velocity_msk.h5' in f]
-        sar_dict[f"VSM_synth_sar{i+1}.csv"] = matching_files[0] if matching_files else None
+    if len(input_sar.split()) >= 2:
+        for i, path in enumerate(input_sar.split()):
+            matching_files = [os.path.join(os.path.dirname(path), f) for f in os.listdir(os.path.dirname(path)) if 'velocity_msk.h5' in f]
+            sar_dict[f"VSM_synth_sar{i+1}.csv"] = matching_files[0] if matching_files else None
+    else:
+        matching_files = [os.path.join(os.path.dirname(input_sar), f) for f in os.listdir(os.path.dirname(input_sar)) if 'velocity_msk.h5' in f]
+        sar_dict["VSM_synth_sar.csv"] = matching_files[0] if matching_files else None
 
     return sar_dict
 
@@ -200,9 +206,8 @@ def plot_results(inps, output_folder, period=None, file_dictionary=None):
 
             for f in os.listdir(os.path.dirname(file_dictionary[file])):
                 if 'downsampled' in f and 'velocity' in f:
-                    v, m = readfile.read(os.path.join(os.path.dirname(file_dictionary[file]), f)) #Downsampled
-                    inps.length = m.get('length', m.get('LENGTH', None))
-                    inps.width = m.get('width', m.get('WIDTH', None))
+                    v = readfile.read(os.path.join(os.path.dirname(file_dictionary[file]), f))[0] #Downsampled
+                    inps.length, inps.width  = v.shape
                     inps.mask = ~np.isnan(v)
                     break
 
@@ -216,17 +221,16 @@ def plot_results(inps, output_folder, period=None, file_dictionary=None):
             geometry_file = None
             geometry_data = None
             for f in os.listdir(temp):
-                if 'geometryRadar.h5' in f:
+                 if 'geometryRadar.h5' in f:
                     geometry_file = os.path.join(temp, f)
-
-                    if os.path.exists(geometry_file.replace('.h5', '_downsampled.h5')):
-                        m = readfile.read(geometry_file.replace('.h5', '_downsampled.h5'), datasetName='height')[1]
-                        length = m.get('length', m.get('LENGTH', None))
-                        width = m.get('width', m.get('WIDTH', None))
                     break
 
             if geometry_file:
                 geometry_data = readfile.read(geometry_file, datasetName='height')[0]
+                lat_arr = readfile.read(geometry_file, datasetName='latitude')[0]
+                lon_arr = readfile.read(geometry_file, datasetName='longitude')[0]
+                lat = (np.nanmin(lat_arr), np.nanmax(lat_arr))
+                lon = (np.nanmin(lon_arr), np.nanmax(lon_arr))
 
             plotter = InversionPlotter(metadata, inps, east, north, data, geometry_data, synth, deformation, inps.model, sources=sources, period=period, latitude=lat, longitude=lon, bbox=inps.bbox)
 
@@ -236,32 +240,61 @@ def plot_results(inps, output_folder, period=None, file_dictionary=None):
     return figures
 
 
-def gather_input_sar(inps, base_folder, match_str):
+def gather_input_sar(inps, base_folder, match_str=None):
+    def get_range(inps, values, coordinate):
+        range = define_range([float('inf'), float('-inf')], values)
+        range_width = (range[1] - range[0])/2
+        array = []
+        for i in coordinate:
+            array.append(range if not i else ([i - (range_width * inps.scaling_box), i + (range_width * inps.scaling_box)]))
+
+        return array
+
     input_sar = ''
-    for f in os.listdir(base_folder):
-        if f.endswith('.csv') and match_str in f:
-            input_sar += os.path.join(base_folder, f) + ' '
-            df = pd.read_csv(os.path.join(base_folder, f))
+    if os.path.isfile(base_folder):
+        input_sar = base_folder
+        df = pd.read_csv(base_folder)
 
-            def get_range(inps, values, coordinate):
-                range = define_range([float('inf'), float('-inf')], values)
-                range_width = (range[1] - range[0])/2
-                array = []
-                for i in coordinate:
-                    array.append(range if not i else ([i - (range_width * inps.scaling_box), i + (range_width * inps.scaling_box)]))
+        inps.x = get_range(inps, df['xx'], inps.x_range)
+        inps.y = get_range(inps, df['yy'], inps.y_range)
+        inps.z = []
 
-                return array
+        Z_MIN, Z_MAX = 500, 20000   # meters
+        inflate = 2             # >1 enlarges the box
 
-            inps.x = get_range(inps, df['xx'], inps.x_range)
-            inps.y = get_range(inps, df['yy'], inps.y_range)
-            inps.z = []
+        for z in inps.z_range:
+            if z:
+                dz = z * inps.scaling_box * inflate
+                z0 = max(z - dz, Z_MIN)
+                z1 = min(z + dz, Z_MAX)
+                inps.z.append([z0, z1])
+            else:
+                inps.z.append([1000, 9000])
 
-            for z in inps.z_range:
-                inps.z.append([z - (1000 * inps.scaling_box), z + (1000 * inps.scaling_box)] if z else [2000, 9000])
+        if len(inps.z) < len(inps.x):
+            for i in range(len(inps.x) - len(inps.z)):
+                inps.z.append([1000, 10000])
+    else:
+        for f in os.listdir(base_folder):
+            if f.endswith('.csv') and match_str in f:
+                input_sar += os.path.join(base_folder, f) + ' '
+                df = pd.read_csv(os.path.join(base_folder, f))
 
-            if len(inps.z) < len(inps.x):
-                for i in range(len(inps.x) - len(inps.z)):
-                    inps.z.append([1000, 10000])
+                inps.x = get_range(inps, df['xx'], inps.x_range)
+                inps.y = get_range(inps, df['yy'], inps.y_range)
+                inps.z = []
+
+                Z_MIN, Z_MAX = 500, 20000   # meters
+                inflate = 2.0              # >1 enlarges the box
+
+                for z in inps.z_range:
+                    if z:
+                        dz = z * inps.scaling_box * inflate
+                        z0 = max(z - dz, Z_MIN)
+                        z1 = min(z + dz, Z_MAX)
+                        inps.z.append([z0, z1])
+                    else:
+                        inps.z.append([1000, 9000])
 
     if input_sar == '':
         raise FileNotFoundError(f"No matching CSV files found in {base_folder} for pattern {match_str}")
@@ -272,7 +305,10 @@ def gather_input_sar(inps, base_folder, match_str):
 def process_folder(inps, input_sar, period=None):
     """Run inversion and plotting for a given folder."""
     models = '_'.join(inps.model)
-    output_folder = os.path.join(inps.folder_path, period, models) if period else os.path.join(inps.folder_path, models)
+    if not inps.output_folder:
+        output_folder = os.path.join(inps.folder_path, period, models) if period else os.path.join(inps.folder_path, models)
+    else:
+        output_folder = os.path.join(inps.output_folder, models)
     os.makedirs(output_folder, exist_ok=True)
 
     model_inputs = extract_model_parameters(inps)
@@ -309,9 +345,9 @@ def gather_all_inputs(inps, folder_list, regex, period=None):
 
 
 def configure_logging(inps):
-    """Configure root logging to write to <inps.folder_path>/log and log the command (basename only)."""
-    os.makedirs(inps.folder_path, exist_ok=True)
-    log_path = os.path.join(inps.folder_path, 'log')
+    """Configure root logging to write to console and log the command (basename only) to a file."""
+    os.makedirs(inps.process_folder, exist_ok=True)
+    log_path = os.path.join(inps.process_folder, 'log')
 
     root = logging.getLogger()
     root.setLevel(logging.INFO)
@@ -321,26 +357,44 @@ def configure_logging(inps):
 
     formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d')
 
-    fh = logging.FileHandler(log_path)
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(formatter)
-    root.addHandler(fh)
-
-    # optional console logging
+    # Console handler for general logs (do not write these to file)
     sh = logging.StreamHandler()
     sh.setLevel(logging.INFO)
     sh.setFormatter(formatter)
     root.addHandler(sh)
 
-    # Log the command-line command but only the script basename
+    # Dedicated logger + file handler for the single command line entry
+    fh = logging.FileHandler(log_path)
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(formatter)
+
+    cmd_logger = logging.getLogger('command_logger')
+    cmd_logger.setLevel(logging.INFO)
+    # Prevent propagation so other handlers (root) don't also write this to stdout/file
+    cmd_logger.propagate = False
+    # Remove any existing handlers on cmd_logger (defensive)
+    for h in list(cmd_logger.handlers):
+        cmd_logger.removeHandler(h)
+    cmd_logger.addHandler(fh)
+
+    # Log only the command (basename + args) to the file via dedicated logger
     script_name = os.path.basename(sys.argv[0]) if len(sys.argv) > 0 else ''
     rest = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else ''
     cmd_command = f"{script_name} {rest}".strip()
-    logging.info(cmd_command)
+    cmd_logger.info(cmd_command)
 
 
 def main(iargs=None):
     inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
+
+    pattern = f"({'|'.join([f'{inps.satellite}[AD]T?'])})\\d+"
+    regex = re.compile(pattern)
+    if os.path.isfile(inps.folder_path):
+        match = regex.search(inps.folder_path)
+        if match:
+            inps.process_folder = inps.folder_path.split(match.group(0))[0]
+    else:
+        inps.process_folder = inps.folder_path
 
     configure_logging(inps)
 
@@ -349,18 +403,19 @@ def main(iargs=None):
     print("-" * 50)
     print()
 
-    if inps.satellite:
-        pattern = f"({'|'.join([f'{inps.satellite}[AD]T?'])})\\d+"
-        regex = re.compile(pattern)
+    if os.path.isfile(inps.folder_path):
+        input_sar = gather_input_sar(inps, inps.folder_path)
+        process_folder(inps, input_sar)
+    else:
         folder_list = [f for f in os.listdir(inps.folder_path) if os.path.isdir(os.path.join(inps.folder_path, f))]
 
-    if inps.period_folder:
-        for period in inps.period_folder:
-            input_sar = gather_all_inputs(inps, folder_list, regex=regex, period=period)
-            process_folder(inps, input_sar, period)
-    else:
-        input_sar = gather_all_inputs(inps, folder_list, regex=regex)
-        process_folder(inps, input_sar)
+        if inps.period_folder:
+            for period in inps.period_folder:
+                input_sar = gather_all_inputs(inps, folder_list, regex=regex, period=period)
+                process_folder(inps, input_sar, period)
+        else:
+            input_sar = gather_all_inputs(inps, folder_list, regex=regex)
+            process_folder(inps, input_sar)
 
     if inps.show:
         print("-" * 50)

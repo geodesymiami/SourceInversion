@@ -19,7 +19,7 @@ def spatial_correlation_maps(map1, map2, mask=None):
         Spatial Pearson correlation (-1 to 1)
 
     Interpretation
-    --------------
+    --------------c
     High corr (≥ 0.7): similar geometry → same source
     Low corr (< 0.5): pattern changed → possible new/migrating source
     """

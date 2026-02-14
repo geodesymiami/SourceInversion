@@ -15,7 +15,7 @@ def main(x, y, paramters, **kwargs):
         # Extract only the parameters required by the okada function
         required_params = ['xtlc', 'ytlc', 'dtlc', 'length', 'width', 
                            'strike', 'dip', 'param1', 'param2', 
-                           'opening', 'opt', 'nu', 'poisson']
+                           'opening', 'opt', 'nu',]
         okada_params = {key: float(all_params[key]) for key in required_params if key in all_params}
 
         print_msg('Okada', x, y, okada_params)

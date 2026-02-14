@@ -2,31 +2,15 @@ import numpy as np
 import os
 from kite import Scene
 from mintpy.utils import readfile, writefile
-from sourceinversion.shared.helper_functions import convert_to_utm, resize_to_match
+from sourceinversion.shared.helper_functions import convert_to_utm
 
 
-class Downsample:
-    def __init__(self, velocity_file=None, kite_file=None, geometry_file=None):
-        self.velocity_file = velocity_file
-        self.geometry_file = geometry_file
-        self.velocity, self.metadata = readfile.read(self.velocity_file)
-
-        self.incident_angle, self.geometry_metadata = readfile.read(self.geometry_file, datasetName='/incidenceAngle')
-        self.azimuth_angle = readfile.read(self.geometry_file, datasetName='/azimuthAngle')[0]
-        self.latitude = readfile.read(self.geometry_file, datasetName='latitude')[0]
-        self.longitude = readfile.read(self.geometry_file, datasetName='longitude')[0]
-        self.height = readfile.read(self.geometry_file, datasetName='height')[0]
+class Downsample():
+    def __init__(self, data: object, kite_file=None):
+        for attr in dir(data):
+            if not attr.startswith('__') and not callable(getattr(data, attr)):
+                setattr(self, attr, getattr(data, attr))
         self.kite_file = kite_file
-
-        self.incident_angle = resize_to_match(self.incident_angle, self.velocity, "incident_angle")
-        self.azimuth_angle = resize_to_match(self.azimuth_angle, self.velocity, "azimuth_angle")
-        self.latitude = resize_to_match(self.latitude, self.velocity, "latitude")
-        self.longitude = resize_to_match(self.longitude, self.velocity, "longitude")
-        self.height = resize_to_match(self.height, self.velocity, "height")
-
-        print("-" * 50)
-        print(f"Loading {self.velocity_file}.\n")
-
 
     def uniform(self, reduction=3):
         """Downsample the velocity data using a mask and geometry file.
@@ -175,6 +159,5 @@ class Downsample:
         self.lose = -np.sin(np.deg2rad(self.incident)) * np.cos(np.deg2rad(self.azimuth)-np.pi/2)
         self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth)-np.pi/2)
         self.losz = np.cos(np.deg2rad(self.incident))
-
 
         self.err = np.full(len(self.z), 0.2)

@@ -2,8 +2,8 @@
 import re
 import os
 import sys
+import logging
 import argparse
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors, cm
@@ -11,7 +11,7 @@ from scipy.interpolate import griddata
 from mintpy.cli.save_kite import main as skite
 from sourceinversion.shared.csv_functions import displacement_csv
 from sourceinversion.downsample.objects.downsample_methods import Downsample
-from sourceinversion.shared.helper_functions import convert_to_utm
+from sourceinversion.shared.helper_functions import convert_to_utm, PrepareData
 
 EXAMPLE = """
         run_downsample.py --path CampiFlegrei --satellite Sen --method uniform --show
@@ -66,6 +66,52 @@ def create_parser():
     return inps
 
 
+def configure_logging(inps):
+    """Configure root logging to write to console and log the command (basename only) to a file."""
+    # inps.folder_path may be a list (multiple folders); ensure dirs exist
+    if isinstance(inps.folder_path, (list, tuple)):
+        for p in inps.folder_path:
+            os.makedirs(p, exist_ok=True)
+        log_dir = inps.folder_path[0]
+    else:
+        os.makedirs(inps.folder_path, exist_ok=True)
+        log_dir = inps.folder_path
+    log_path = os.path.join(log_dir, 'log')
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    # remove existing handlers to avoid duplicate logging
+    for h in list(root.handlers):
+        root.removeHandler(h)
+
+    formatter = logging.Formatter('%(asctime)s - %(message)s', datefmt='%Y-%m-%d')
+
+    # Console handler for general logs (do not write these to file)
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(formatter)
+    root.addHandler(sh)
+
+    # Dedicated logger + file handler for the single command line entry
+    fh = logging.FileHandler(log_path)
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(formatter)
+
+    cmd_logger = logging.getLogger('command_logger')
+    cmd_logger.setLevel(logging.INFO)
+    # Prevent propagation so other handlers (root) don't also write this to stdout/file
+    cmd_logger.propagate = False
+    # Remove any existing handlers on cmd_logger (defensive)
+    for h in list(cmd_logger.handlers):
+        cmd_logger.removeHandler(h)
+    cmd_logger.addHandler(fh)
+
+    # Log only the command (basename + args) to the file via dedicated logger
+    script_name = os.path.basename(sys.argv[0]) if len(sys.argv) > 0 else ''
+    rest = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else ''
+    cmd_command = f"{script_name} {rest}".strip()
+    cmd_logger.info(cmd_command)
+
+
 def find_velocity_and_geometry(input_folder, period_folder):
     # Velocity file is in the period folder
     velocity_files = [os.path.join(period_folder, f) for f in os.listdir(period_folder) if 'velocity_msk.h5' in f]
@@ -89,7 +135,10 @@ def process_folder(velocity_file, geom_file, out_file, inps):
     kite_args = [velocity_file, "-d", "velocity", "-g", geom_file, "-o", out_file]
 
     if inps.method == 'uniform':
-        down = Downsample(velocity_file=velocity_file, geometry_file=geom_file)
+        pdd = PrepareData()
+        pdd.read_mintpy(velocity_file, geom_file)
+        pdd.write_netcdf(os.path.join(os.getenv('SCRATCHDIR'), 'temp_velocity.nc'))
+        down = Downsample(pdd)
         down.uniform(reduction=inps.reduce[0])
         inps.reduce.pop(0)
         if inps.show:
@@ -97,7 +146,8 @@ def process_folder(velocity_file, geom_file, out_file, inps):
             if inps.style == 'scatter':
                 ax[0].scatter(down.x, down.y, c=down.z, s=1, cmap=inps.color_map)
             elif inps.style == 'image':
-                ax[0].imshow(down.height, cmap='gray', extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
+                # TODO do i need dem?
+                # ax[0].imshow(down.height, cmap='gray', extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
                 ax[0].imshow(down.imshow, cmap=inps.color_map, extent=(np.nanmin(down.x), np.nanmax(down.x), np.nanmin(down.y), np.nanmax(down.y)), origin='upper')
 
             #Interpolated result
@@ -162,6 +212,9 @@ def main(iargs=None):
     print()
 
     inps = create_parser() if not isinstance(iargs, argparse.Namespace) else iargs
+
+    configure_logging(inps)
+
 
     if inps.satellite:
         p = '|'.join([f"{s}[AD]T?" for s in inps.satellite])
