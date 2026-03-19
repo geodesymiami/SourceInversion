@@ -34,7 +34,7 @@ def create_parser():
     parser.add_argument('--output-folder', type=str, default=None, help="Output folder for inversion results.")
     parser.add_argument('--satellite', type=str, default='Sen', choices=['Sen', 'Csk'], help="Satellite name.")
     parser.add_argument('--txt-file', type=str, default=None , help="Path of the template file.")
-    parser.add_argument('--shear', type=float, default=5e9, help="Shear value (default: %(default)s).")
+    parser.add_argument('--shear', type=float, default=None, help="Shear value (default: %(default)s).")
     parser.add_argument('--poisson', type=float, dest='nu', default=0.25, help="Poisson ratio (default: %(default)s).")
     parser.add_argument('--model', type=str, choices=['mogi', 'penny', 'spheroid', 'moment', 'okada'], nargs='+', help='Source model(s) to include.')
     parser.add_argument('--weight-sar', type=float, default=1.0, help="Weight for SAR data (default: 1.0).")
@@ -91,6 +91,21 @@ def create_parser():
     for attr in ['x_range', 'y_range', 'z_range']:
         while len(inps.model) > len(getattr(inps, attr)):
             getattr(inps, attr).append(None)
+
+
+    if not inps.shear:
+        Z_MIN, Z_MAX = 500, 20000   # meters
+        inflate = 2             # >1 enlarges the box
+        depth = []
+        for z in inps.z_range:
+            if z:
+                dz = z * inps.scaling_box * inflate
+                z0 = max(z - dz, Z_MIN)
+                z1 = min(z + dz, Z_MAX)
+                depth.append([z0, z1])
+
+        young = 5.4e9 if np.mean(depth)< 2000 else 2.8e10
+        inps.shear = young / (2 * (1 + inps.nu))
 
     return inps
 
@@ -274,6 +289,24 @@ def gather_input_sar(inps, base_folder, match_str=None):
         if len(inps.z) < len(inps.x):
             for i in range(len(inps.x) - len(inps.z)):
                 inps.z.append([1000, 10000])
+
+        mean_depth = np.mean([np.mean(d) for d in inps.z])
+        if mean_depth < 1000:
+            # Very shallow: fractured, altered rocks
+            young = 1.0e9 + 4.4e6 * mean_depth  # Linear increase
+        elif mean_depth < 5000:
+            # Shallow to mid-crust: increasing consolidation
+            young = 5.4e9 + 2.8e6 * (mean_depth - 1000)
+        elif mean_depth < 10000:
+            # Mid-crust: approaching intact rock
+            young = 1.67e10 + 1.13e6 * (mean_depth - 5000)
+        else:
+            # Deep crust: competent crystalline rocks
+            young = 2.23e10 + 0.57e6 * (mean_depth - 10000)
+            # Cap at reasonable maximum
+            young = min(young, 1.0e11)
+
+        inps.shear = young / (2 * (1 + inps.nu))
     else:
         for f in os.listdir(base_folder):
             if f.endswith('.csv') and match_str in f:
