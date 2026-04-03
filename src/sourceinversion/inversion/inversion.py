@@ -270,8 +270,16 @@ def gather_input_sar(inps, base_folder, match_str=None):
         input_sar = base_folder
         df = pd.read_csv(base_folder)
 
-        inps.x = get_range(inps, df['xx'], inps.x_range)
-        inps.y = get_range(inps, df['yy'], inps.y_range)
+        if len(inps.x_range) > len(inps.model):
+            inps.x = [inps.x_range]
+        else:
+            inps.x = get_range(inps, df['xx'], inps.x_range)
+
+        if len(inps.y_range) > len(inps.model):
+            inps.y = [inps.y_range]
+        else:
+            inps.y = get_range(inps, df['yy'], inps.y_range)
+
         inps.z = []
 
         Z_MIN, Z_MAX = 500, 20000   # meters

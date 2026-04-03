@@ -41,12 +41,15 @@ def create_parser():
     parser.add_argument('--style', choices=['scatter', 'image'], default='image', help="Plotting style (default: %(default)s).")
     parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
 
+    parser.add_argument('--offset', type=float, nargs='+', default=[0], help="Offset for the downsampled deformation (default: %(default)s).")
+
     # Parse arguments
     inps = parser.parse_args()
 
     inps.folder_path = [folder if SCRATCHDIR in folder else os.path.join(SCRATCHDIR, folder) for folder in inps.path]
 
     inps.reduce = [inps.reduce[0], inps.reduce[0]] if len(inps.reduce)==1 else inps.reduce
+    inps.offset = [inps.offset[0], inps.offset[0]] if len(inps.offset)==1 else inps.offset
 
     if inps.period:
         inps.period_folder = []
@@ -141,6 +144,12 @@ def process_folder(velocity_file, geom_file, out_file, inps):
         down = Downsample(pdd)
         down.uniform(reduction=inps.reduce[0])
         inps.reduce.pop(0)
+
+        # Offset the downsampled deformation
+        down.z += inps.offset[0]
+        print(down.z[~np.isnan(down.z)].min(), down.z[~np.isnan(down.z)].max())
+        inps.offset.pop(0)
+
         if inps.show:
             fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 5))
             if inps.style == 'scatter':
@@ -199,7 +208,6 @@ def process_folder(velocity_file, geom_file, out_file, inps):
 
                 ax.set_xlim(down.qt.leaf_eastings.min(), down.qt.leaf_eastings.max())
                 ax.set_ylim(down.qt.leaf_northings.min(), down.qt.leaf_northings.max())
-
 
     # Save the downsampled data
     displacement_csv(file=out_file, x=down.x, y=down.y, z=down.z, err=down.err, lose=down.lose, losn=down.losn, losz=down.losz)

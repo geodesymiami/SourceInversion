@@ -1,8 +1,8 @@
 import numpy as np
 import os
+from sourceinversion.shared.helper_functions import convert_to_utm
 from kite import Scene
 from mintpy.utils import readfile, writefile
-from sourceinversion.shared.helper_functions import convert_to_utm
 
 
 class Downsample():
