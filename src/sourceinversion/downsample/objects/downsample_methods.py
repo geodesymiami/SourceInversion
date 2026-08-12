@@ -1,8 +1,9 @@
-import numpy as np
 import os
-from sourceinversion.shared.helper_functions import convert_to_utm
+import numpy as np
 from kite import Scene
+from datetime import datetime
 from mintpy.utils import readfile, writefile
+from sourceinversion.shared.helper_functions import convert_to_utm
 
 
 class Downsample():
@@ -10,20 +11,16 @@ class Downsample():
         for attr in dir(data):
             if not attr.startswith('__') and not callable(getattr(data, attr)):
                 setattr(self, attr, getattr(data, attr))
+        start, end = self.period.split(':')
+        self.days = (datetime.strptime(end, '%Y%m%d') - datetime.strptime(start, '%Y%m%d')).days
         self.kite_file = kite_file
 
     def uniform(self, reduction=3):
-        """Downsample the velocity data using a mask and geometry file.
-        Parameters: velocity_file - path to the velocity data file
-                    mask_file     - path to the mask file
-                    geometry_file  - path to the geometry file
-        Returns:    z_flat       - flattened velocity data
-                    x_flat       - flattened x-coordinates
-                    y_flat       - flattened y-coordinates
-                    z_downsampled- downsampled velocity data
-                    xx           - meshgrid x-coordinates
-                    yy           - meshgrid y-coordinates
+        """Downsample the data using a mask and geometry file.
+        Args:
+            reduction (int): The factor by which to reduce the data.
         """
+
         # Skip value every 'skip' step
         skip = reduction
 
@@ -38,6 +35,10 @@ class Downsample():
         self.sliced_azimuth_angle = self.azimuth_angle[::skip, ::skip]
         self.sliced_height = self.height[::skip, ::skip]
 
+        if self.temporal_coherence is not None:
+            self.sliced_temporal_coherence = self.temporal_coherence[::skip, ::skip]
+            self.sliced_temporal_coherence = self.sliced_temporal_coherence.flatten()
+
         z = self.imshow.flatten()
         x = self.sliced_x.flatten()
         y = self.sliced_y.flatten()
@@ -51,6 +52,9 @@ class Downsample():
         # Convert coordinates to UTM and apply mask
         x, y = convert_to_utm(longitude=x, latitude=y)
 
+        # Velocity to displacement conversion
+        z = z / 365.2 * self.days
+
         # Assign filtered values to instance variables
         self.z = z
         self.x = x
@@ -60,6 +64,7 @@ class Downsample():
 
         self._LOS()
         self._write_file()
+        self._sigma()
 
 
     def quadtree(self, epsilon=0.0029, tile_size_max=0.02, tile_size_min=0.002, nan_allowed=0.9):
@@ -160,4 +165,14 @@ class Downsample():
         self.losn = np.sin(np.deg2rad(self.incident)) * np.sin(np.deg2rad(self.azimuth)-np.pi/2)
         self.losz = np.cos(np.deg2rad(self.incident))
 
-        self.err = np.full(len(self.z), 0.2)
+
+    def _sigma(self):
+        """Calculate the standard deviation of the downsampled velocity data."""
+        if self.sliced_temporal_coherence is not None:
+            sigma_min = 0.002
+            sigma_max = 0.02
+            p = 2
+            sigma = sigma_min + (sigma_max - sigma_min) * (1 - self.sliced_temporal_coherence) ** p
+            self.err = sigma
+        else:
+            self.err = np.full(len(self.z), 0.005)

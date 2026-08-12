@@ -14,7 +14,7 @@ from sourceinversion.downsample.objects.downsample_methods import Downsample
 from sourceinversion.shared.helper_functions import convert_to_utm, PrepareData
 
 EXAMPLE = """
-        run_downsample.py --path CampiFlegrei --satellite Sen --method uniform --show
+        run_downsample.py --path CampiFlegrei --satellite Sen --method uniform
 """
 SCRATCHDIR = os.getenv('SCRATCHDIR')
 
@@ -37,11 +37,11 @@ def create_parser():
 
     parser.add_argument('--period', nargs='*', metavar='YYYYMMDD:YYYYMMDD, YYYYMMDD,YYYYMMDD', type=str, help='Period of the search')
 
-    parser.add_argument('--color-map', type=str, default='viridis', help="Colormap for plotting (default: %(default)s).")
+    parser.add_argument('--color-map', type=str, default='RdBu', help="Colormap for plotting (default: %(default)s).")
     parser.add_argument('--style', choices=['scatter', 'image'], default='image', help="Plotting style (default: %(default)s).")
     parser.add_argument('--no-show', dest='show', action='store_false', help="Show the plot.")
 
-    parser.add_argument('--offset', type=float, nargs='+', default=[0], help="Offset for the downsampled deformation (default: %(default)s).")
+    parser.add_argument('--offset', type=float, nargs='+', default=[0], help="Offset for the downsampled deformation in meters (default: %(default)s).")
 
     # Parse arguments
     inps = parser.parse_args()
@@ -115,7 +115,7 @@ def configure_logging(inps):
     cmd_logger.info(cmd_command)
 
 
-def find_velocity_and_geometry(input_folder, period_folder):
+def find_files(input_folder, period_folder):
     # Velocity file is in the period folder
     velocity_files = [os.path.join(period_folder, f) for f in os.listdir(period_folder) if 'velocity_msk.h5' in f]
 
@@ -126,20 +126,25 @@ def find_velocity_and_geometry(input_folder, period_folder):
     # Other files are in the parent folder
     geom_files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'geometryRadar.h5' in f]
 
+    tempcoh_files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if 'temporalCoherence.h5' in f]
+
     if not velocity_files:
         raise FileNotFoundError(f"No velocity file found in period folder: {period_folder}")
     if not geom_files:
         raise FileNotFoundError(f"No geometryRadar.h5 found in input folder: {input_folder}")
+    if not tempcoh_files:
+        raise FileNotFoundError(f"No temporalCoherence.h5 found in input folder: {input_folder}")
 
-    return velocity_files[0], geom_files[0]
+    return velocity_files[0], geom_files[0], tempcoh_files[0]
 
 
-def process_folder(velocity_file, geom_file, out_file, inps):
+
+def process_folder(velocity_file, geom_file, tempcoh_file, out_file, inps):
     kite_args = [velocity_file, "-d", "velocity", "-g", geom_file, "-o", out_file]
 
     if inps.method == 'uniform':
-        pdd = PrepareData()
-        pdd.read_mintpy(velocity_file, geom_file)
+        pdd = PrepareData(inps)
+        pdd.read_mintpy(velocity_file, geom_file, tempcoh_file)
         pdd.write_netcdf(os.path.join(os.getenv('SCRATCHDIR'), 'temp_velocity.nc'))
         down = Downsample(pdd)
         down.uniform(reduction=inps.reduce[0])
@@ -248,13 +253,13 @@ def main(iargs=None):
                             continue
 
                         out_file = os.path.join(period_folder, inps.path[0] + node)
-                        velocity_file, geom_file = find_velocity_and_geometry(input_folder, period_folder)
-                        process_folder(velocity_file, geom_file, out_file, inps)
+                        velocity_file, geom_file, tempcoh_file = find_files(input_folder, period_folder)
+                        process_folder(velocity_file, geom_file, tempcoh_file, out_file, inps)
                 else:
                     # Process the main folder as usual
                     out_file = os.path.join(input_folder, inps.path[0] + node)
-                    velocity_file, geom_file = find_velocity_and_geometry(input_folder, input_folder)
-                    process_folder(velocity_file, geom_file, out_file, inps)
+                    velocity_file, geom_file, tempcoh_file = find_files(input_folder, input_folder)
+                    process_folder(velocity_file, geom_file, tempcoh_file, out_file, inps)
 
     else:
         pattern = f"({p})\d+"

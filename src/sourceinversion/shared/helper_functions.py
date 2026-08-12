@@ -251,7 +251,12 @@ def get_bounding_box(metadata):
 
 
 class PrepareData():
-    def read_mintpy(self, velocity_file, geometry_file):
+    def __init__(self, inps):
+        for attr in dir(inps):
+            if not attr.startswith('__') and not callable(getattr(inps, attr)):
+                setattr(self, attr, getattr(inps, attr))
+
+    def read_mintpy(self, velocity_file, geometry_file, tempcoh_file=None):
         print("-" * 50)
         print(f"Loading {velocity_file} and {geometry_file} with mintpy utils...\n")
 
@@ -260,12 +265,34 @@ class PrepareData():
 
         self.velocity, self.metadata = readfile.read(velocity_file)
         self.incident_angle, self.geometry_metadata = readfile.read(geometry_file, datasetName='/incidenceAngle')
+        self.temporal_coherence = None
+        if tempcoh_file:
+            self.temporal_coherence, _ = readfile.read(tempcoh_file)
+
         self.azimuth_angle = readfile.read(geometry_file, datasetName='/azimuthAngle')[0]
         self.latitude = readfile.read(geometry_file, datasetName='latitude')[0]
         self.longitude = readfile.read(geometry_file, datasetName='longitude')[0]
         self.height = readfile.read(geometry_file, datasetName='height')[0]
 
-        self._resize()
+        if not hasattr(self, 'period'):
+            self.period = f"{self.metadata.get('START_DATE')}:{self.metadata.get('END_DATE')}"
+        else:
+            self.period = self.period[0] if isinstance(self.period, list) else self.period
+
+        datasets = {
+            'height': self.height,
+            'incident_angle': self.incident_angle,
+            'azimuth_angle': self.azimuth_angle,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+        }
+        if self.temporal_coherence is not None:
+            datasets['temporal_coherence'] = self.temporal_coherence
+
+        for name in datasets:
+            resized = resize_to_match(datasets[name], self.velocity, name)
+            setattr(self, name, resized)
+
 
     def write_csv(self, out_csv):
         """Write data to CSV file."""
